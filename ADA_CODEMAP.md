@@ -53,9 +53,13 @@ Classroom-Ready Materials
 
 ---
 
-## 📥 Dropzones - User Activation Interface
+## 📥 Dropzones - User Activation Interface (VISION)
 
-**Purpose:** Intelligent intake zones where users activate LearnQwest's AI orchestration
+**Status:** 🔄 Designed but not fully implemented yet  
+**Current Interface:** CLI via `run_ada.py` and direct Python calls  
+**Future Vision:** Drag-and-drop file-based activation zones
+
+**Purpose:** Intelligent intake zones where users will activate LearnQwest's AI orchestration
 
 ### What Dropzones Do:
 
@@ -82,7 +86,31 @@ Classroom-Ready Materials
 - Requests revisions if needed
 - Feeds learning loop for improvement
 
-### Dropzone Flow:
+### Current Usage (What's Working NOW):
+
+**CLI Interface:**
+```bash
+# Quiz generation
+python run_ada.py "Create a quiz about Python functions"
+
+# Code analysis
+python run_ada.py "Find duplicate code patterns"
+python run_ada.py "Analyze code organization"
+
+# Content research
+python run_ada.py "Research quantum computing basics"
+```
+
+**Direct Python:**
+```python
+from ada_coordinator import ADACoordinator
+coordinator = ADACoordinator()
+report = await coordinator.execute("Create a quiz about photosynthesis")
+```
+
+---
+
+### Future Dropzone Flow (VISION):
 
 ```
 User drops content into Dropzone
