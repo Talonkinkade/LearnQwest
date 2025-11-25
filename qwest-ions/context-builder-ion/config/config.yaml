@@ -1,0 +1,23 @@
+# Context Builder Ion Configuration
+ion:
+  name: context-builder
+  version: 1.0.0
+  description: Builds project context from git logs and file activity
+  
+git:
+  enabled: true
+  max_commits: 20
+  lookback_days: 7
+  
+files:
+  enabled: true
+  scan_depth: 3
+  modified_within_hours: 48
+  
+output:
+  format: json
+  include_suggestions: true
+  
+logging:
+  level: info
+  verbose: false

@@ -1,0 +1,30 @@
+# Content Fetcher Ion Configuration
+ion:
+  name: content-fetcher
+  version: 1.0.0
+  description: Extracts content from YouTube videos and web pages
+  
+sources:
+  youtube:
+    enabled: true
+    max_transcript_length: 50000
+    fallback_to_description: true
+  
+  web:
+    enabled: true
+    max_content_length: 100000
+    timeout_seconds: 30
+    user_agent: "LearnQwest-ContentFetcher/1.0"
+
+extraction:
+  clean_html: true
+  extract_metadata: true
+  include_timestamps: true
+
+output:
+  format: json
+  include_raw: false
+  
+logging:
+  level: info
+  verbose: false
