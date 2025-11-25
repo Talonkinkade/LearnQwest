@@ -341,7 +341,10 @@ Key learning objectives include understanding core concepts, applying knowledge 
                 logger.info(f"Ion {ion_name} completed in {execution_time_ms:.0f}ms")
                 return {
                     "success": True,
-                    "output": output,
+                    "result": output.get(
+                        "result", output
+                    ),  # Extract result from Ion output
+                    "output": output,  # Keep full output for debugging
                     "error": None,
                     "execution_time_ms": execution_time_ms,
                 }

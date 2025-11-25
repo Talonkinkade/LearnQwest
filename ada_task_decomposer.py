@@ -133,8 +133,93 @@ class TaskDecomposer:
         )
 
     def _identify_pattern(self, task: str) -> TaskPattern:
-        """Identify which pattern this task matches"""
+        """Identify which pattern this task matches
+
+        IMPORTANT: More specific patterns must be checked BEFORE general ones!
+        e.g., "find duplicate" should match DUPLICATE_DETECTION, not CONTENT_RESEARCH
+        """
         task_lower = task.lower()
+
+        # ============================================================
+        # SPECIFIC CODE ANALYSIS PATTERNS (check first!)
+        # These contain words like "find", "code" that overlap with general patterns
+        # ============================================================
+
+        # Duplicate detection - check before "find" triggers research
+        # Enhanced with "find duplicate code" patterns
+        if any(
+            word in task_lower
+            for word in [
+                "duplicate",
+                "duplicates",
+                "repeated",
+                "redundant",
+                "copy",
+                "copies",
+            ]
+        ) or any(
+            phrase in task_lower
+            for phrase in [
+                "find duplicate",
+                "duplicate code",
+                "duplicate patterns",
+                "similar code",
+            ]
+        ):
+            return TaskPattern.DUPLICATE_DETECTION
+
+        # Dead code analysis - check before general code analysis
+        # Enhanced with "identify/find unused code" patterns
+        if any(
+            phrase in task_lower
+            for phrase in [
+                "dead code",
+                "unused code",
+                "unreachable",
+                "identify unused",
+                "find unused",
+            ]
+        ) or (
+            ("unused" in task_lower or "dead" in task_lower) and "code" in task_lower
+        ):
+            return TaskPattern.DEAD_CODE_ANALYSIS
+
+        # Code organization - check before general "organize" triggers cleanup
+        # Enhanced with "analyze code organization" patterns
+        if any(
+            phrase in task_lower
+            for phrase in [
+                "code organization",
+                "organize code",
+                "group code",
+                "structure code",
+                "analyze organization",
+                "analyze code organization",
+            ]
+        ) or (
+            "code" in task_lower
+            and any(word in task_lower for word in ["group", "structure", "arrange"])
+        ):
+            return TaskPattern.CODE_ORGANIZATION
+
+        # ============================================================
+        # LEARNING PATTERNS (check before general research)
+        # ============================================================
+
+        # Quiz generation - specific learning pattern
+        if "quiz" in task_lower or "test questions" in task_lower:
+            return TaskPattern.QUIZ_GENERATION
+
+        # Learning materials - broader learning pattern
+        if any(
+            word in task_lower
+            for word in ["questions", "teach", "explain", "lesson", "study", "learn"]
+        ) and not any(word in task_lower for word in ["research", "search"]):
+            return TaskPattern.LEARNING_MATERIALS
+
+        # ============================================================
+        # PROJECT/CODEBASE ANALYSIS PATTERNS
+        # ============================================================
 
         # Codebase analysis patterns
         if any(
@@ -145,37 +230,42 @@ class TaskDecomposer:
         ):
             return TaskPattern.CODEBASE_ANALYSIS
 
-        # Research patterns
-        if any(
-            word in task_lower
-            for word in ["research", "find", "search", "learn about", "discover"]
-        ):
-            return TaskPattern.CONTENT_RESEARCH
-
         # Status patterns
         if any(
             word in task_lower
-            for word in ["status", "where am i", "what was i", "context", "working on"]
+            for word in [
+                "status",
+                "where am i",
+                "what was i",
+                "context",
+                "working on",
+                "yesterday",
+            ]
         ):
             return TaskPattern.PROJECT_STATUS
 
-        # Cleanup patterns
-        if any(word in task_lower for word in ["clean", "cleanup", "organize", "tidy"]):
+        # Cleanup patterns (check after specific code patterns)
+        if any(word in task_lower for word in ["clean", "cleanup", "tidy"]):
             return TaskPattern.CODE_CLEANUP
 
         # Refactoring patterns
+        # Enhanced with "generate refactoring plan" patterns
         if any(
-            word in task_lower
-            for word in ["refactor", "restructure", "improve", "optimize"]
+            phrase in task_lower
+            for phrase in [
+                "refactor",
+                "restructure",
+                "improve code",
+                "optimize code",
+                "refactoring plan",
+                "generate refactoring",
+            ]
         ):
             return TaskPattern.REFACTORING
 
-        # Learning materials
-        if any(
-            word in task_lower
-            for word in ["quiz", "questions", "teach", "explain", "lesson", "study"]
-        ):
-            return TaskPattern.LEARNING_MATERIALS
+        # ============================================================
+        # CONTENT PATTERNS
+        # ============================================================
 
         # Quality assessment
         if any(
@@ -185,37 +275,31 @@ class TaskDecomposer:
         ):
             return TaskPattern.QUALITY_ASSESSMENT
 
+        # Content extraction
+        if any(
+            word in task_lower
+            for word in ["extract", "pull content", "get content", "transcript"]
+        ):
+            return TaskPattern.CONTENT_EXTRACTION
+
         # Documentation
         if any(word in task_lower for word in ["document", "docs", "readme", "guide"]):
             return TaskPattern.DOCUMENTATION
 
-        # Duplicate detection (specific)
+        # ============================================================
+        # GENERAL RESEARCH (check last - most general pattern)
+        # ============================================================
+
+        # Research patterns - now check LAST since "find" is very general
         if any(
             word in task_lower
-            for word in ["duplicate", "duplicates", "repeated", "redundant"]
+            for word in ["research", "search", "learn about", "discover", "look up"]
         ):
-            return TaskPattern.DUPLICATE_DETECTION
+            return TaskPattern.CONTENT_RESEARCH
 
-        # Dead code analysis (specific)
-        if any(word in task_lower for word in ["dead code", "unused", "unreachable"]):
-            return TaskPattern.DEAD_CODE_ANALYSIS
-
-        # Code organization (specific)
-        if any(
-            word in task_lower for word in ["group", "organize", "structure", "arrange"]
-        ):
-            return TaskPattern.CODE_ORGANIZATION
-
-        # Content extraction
-        if any(
-            word in task_lower
-            for word in ["extract", "pull", "get content", "transcript"]
-        ):
-            return TaskPattern.CONTENT_EXTRACTION
-
-        # Quiz generation (specific)
-        if "quiz" in task_lower or "questions" in task_lower:
-            return TaskPattern.QUIZ_GENERATION
+        # General "find" only if nothing more specific matched
+        if "find" in task_lower:
+            return TaskPattern.CONTENT_RESEARCH
 
         return TaskPattern.CUSTOM
 
