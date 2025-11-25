@@ -37,7 +37,7 @@
 
 **Architecture:**
 ```
-High-Level Task (from Link)
+User Content (via Dropzone)
          ↓
     ADA Coordinator (CHARLIE)
          ↓
@@ -47,7 +47,90 @@ DECOMPOSE  EXECUTE  SYNTHESIZE
 (ALPHA)   (Existing) (BRAVO)
     ↓         ↓         ↓
 Task Plan → Ions → Report
+         ↓
+Classroom-Ready Materials
 ```
+
+---
+
+## 📥 Dropzones - User Activation Interface
+
+**Purpose:** Intelligent intake zones where users activate LearnQwest's AI orchestration
+
+### What Dropzones Do:
+
+**1. Content Intake**
+- Accept YouTube URLs, documents, text, or web links
+- Analyze content type and structure
+- Extract metadata (duration, source, format)
+
+**2. Requirement Specification**
+- Grade level (K-12)
+- Subject area
+- TEKS standards alignment
+- Question count and types
+- Difficulty distribution
+
+**3. ADA Activation**
+- Trigger multi-Ion orchestration pipeline
+- Route to appropriate Ions based on content type
+- Monitor real-time execution progress
+
+**4. Quality Control**
+- User grades output (1-5 stars)
+- Provides feedback on alignment
+- Requests revisions if needed
+- Feeds learning loop for improvement
+
+### Dropzone Flow:
+
+```
+User drops content into Dropzone
+         ↓
+Dropzone analyzes content type
+         ↓
+Activates appropriate Ions via ADA
+         ↓
+ADA orchestrates Ion execution
+         ↓
+Results synthesized into learning materials
+         ↓
+User grades output quality
+         ↓
+Feedback loop improves future generations
+         ↓
+Final materials ready for classroom
+```
+
+### Example Workflow:
+
+**Input:**
+- Content: YouTube video URL (photosynthesis)
+- Requirements: 10 questions, 6th grade, TEKS Science
+- Dropzone: Educational Content → Quiz Generation
+
+**ADA Orchestration:**
+```
+Wave 1 (Parallel):
+├─ content-fetcher-ion    → Extract video transcript
+├─ quality-assessor-ion   → Assess educational value
+└─ context-builder-ion    → Build content context
+
+Wave 2 (Sequential):
+└─ quiz-generator-ion     → Generate 10 TEKS-aligned questions
+```
+
+**Output:**
+- 10 quiz questions (multiple choice, true/false, short answer)
+- Each aligned to specific TEKS standards
+- Difficulty distribution (easy/medium/hard)
+- Answer key with explanations
+- Estimated completion time: 60 seconds
+
+**User Feedback:**
+- Teacher reviews questions
+- Rates quality (1-5 stars)
+- ADA records feedback for learning loop
 
 ---
 
