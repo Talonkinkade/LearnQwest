@@ -1,0 +1,38 @@
+{
+  "project_root": "c:\\Users\\talon\\OneDrive\\Projects\\LearnQwest",
+  "scan_level": "quick",
+  "workflow_version": "1.0.0",
+  "mode": "initial_scan",
+  "output_folder": "./output",
+  "completed_steps": [],
+  "current_step": "duplicate_detection",
+  "timestamps": {
+    "started": "2025-11-25T13:00:00Z",
+    "last_updated": "2025-11-25T13:01:00Z"
+  },
+  "findings": {
+    "files": [
+      {
+        "path": "src/utils/helpers.ts",
+        "lines": 100,
+        "size": 2048,
+        "extension": ".ts",
+        "content": "export function formatDate(date: Date): string { return date.toISOString(); }"
+      },
+      {
+        "path": "src/components/DateDisplay.ts",
+        "lines": 50,
+        "size": 1024,
+        "extension": ".ts",
+        "content": "export function formatDate(date: Date): string { return date.toISOString(); }"
+      },
+      {
+        "path": "src/api/handlers.ts",
+        "lines": 200,
+        "size": 4096,
+        "extension": ".ts",
+        "content": "async function handleRequest(req: Request) { const data = await req.json(); return data; }"
+      }
+    ]
+  }
+}
