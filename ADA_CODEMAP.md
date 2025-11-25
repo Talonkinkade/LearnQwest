@@ -1,11 +1,159 @@
 # LearnQwest ADA System - CodeMap
 **Multi-Agent Orchestration Platform**
-**Last Updated:** 2025-11-25 (Night Session)
+**Last Updated:** 2025-11-25 (Night Session - Dropzone Integration)
 **Team:** ALPHA, BRAVO, CHARLIE, DELTA
 
 ---
 
-## [LATEST] Updates (Nov 25, 2025 - Night)
+## [LATEST] Updates (Nov 25, 2025 - Dropzone Integration)
+
+### Phase 5: Named Workflows [COMPLETE]
+**Mission:** ALPHA/BRAVO built user-friendly CLI commands
+
+**Status:** ✅ COMPLETE - Teacher-friendly interface operational
+
+**What Was Built:**
+1. **Workflow Library** (`workflow_library.py` - 295 lines)
+   - 8 predefined workflows with parameter validation
+   - Natural language task generation from parameters
+   - Help text generation for each workflow
+   - Error handling with clear messages
+
+2. **Available Workflows:**
+   - `create-quiz` - Generate TEKS-aligned quiz questions
+   - `audit-codebase` - Full codebase audit with refactoring
+   - `analyze-code` - Codebase analysis (duplicates, dead code, organization)
+   - `research-topic` - Educational content research
+   - `assess-quality` - Content quality assessment
+   - `find-duplicates` - Duplicate code detection
+   - `find-dead-code` - Dead code analysis
+   - `organize-code` - Code organization analysis
+
+3. **CLI Integration** (`run_ada.py` updated)
+   - Named workflow subcommands
+   - Parameter parsing (--param-name value)
+   - Workflow-specific help (--help)
+   - List all workflows (--workflows)
+   - Backward compatible (natural language still works)
+
+**Usage Examples:**
+```bash
+# Named workflows (new!)
+python run_ada.py create-quiz --topic "photosynthesis" --grade-level 6
+python run_ada.py audit-codebase
+python run_ada.py find-duplicates --path "./src"
+
+# Natural language (still works!)
+python run_ada.py "Create a quiz about Python"
+python run_ada.py "Analyze the codebase"
+
+# Help system
+python run_ada.py --workflows              # List all workflows
+python run_ada.py create-quiz --help       # Workflow-specific help
+```
+
+**Test Results:**
+```bash
+# Test 1: Named workflow
+python run_ada.py audit-codebase --quiet
+# Output: 4 Ions, 2 waves, 8.6s, 100% success ✅
+
+# Test 2: Workflow with parameters
+python run_ada.py create-quiz --topic "Python functions" --grade-level 8 --question-count 3
+# Output: 4 questions generated, 97ms ✅
+
+# Test 3: Natural language (backward compatible)
+python run_ada.py "Find duplicate code" --quiet
+# Output: 1 Ion, 1.4s ✅
+```
+
+**Benefits:**
+- Easier for non-technical users (teachers)
+- Self-documenting (--help shows options)
+- Consistent interface
+- Foundation for GUI/web interface
+
+**Files Modified:**
+- `workflow_library.py`: Created (295 lines)
+- `run_ada.py`: Updated (228 lines)
+
+**Commit:** `f672059`
+
+---
+
+### Phase 4: Dropzone Integration [COMPLETE]
+**Mission:** CHARLIE coordinated file-based activation interface
+
+**Status:** ✅ COMPLETE - Dropzone system operational
+
+**What Was Built:**
+1. **ADA Dropzone Processor** (`ada_dropzone.py` - 477 lines)
+   - File watcher monitors `dropzones/inbox/` for new content
+   - Content analyzer detects type: quiz, audit, research, YouTube, code
+   - Automatic task generation from file content
+   - Integration with ADA Coordinator for multi-Ion execution
+   - Results saved to `dropzones/results/` as JSON
+
+2. **Content Analysis System**
+   - JSON spec detection: `{"type": "quiz", "topic": "...", "grade": 6}`
+   - YouTube URL detection: Extracts URLs from text files
+   - Code file analysis: .py, .ts, .js detection with line counting
+   - Audit request handling: `{"type": "audit", "path": "./"}`
+
+3. **Directory Structure**
+   ```
+   dropzones/
+   ├── inbox/          # Drop content here to trigger ADA
+   ├── processing/     # Files currently being processed
+   ├── completed/      # Successfully processed
+   ├── failed/         # Processing failed (with error logs)
+   ├── results/        # JSON results from each processing
+   └── logs/           # Daily log files
+   ```
+
+4. **CLI Interface**
+   ```bash
+   python ada_dropzone.py --watch       # Continuous monitoring
+   python ada_dropzone.py --once        # Process inbox once
+   python ada_dropzone.py --file <path> # Process single file
+   python ada_dropzone.py --status      # Show dropzone status
+   ```
+
+**Test Results:**
+```bash
+# Drop quiz spec into inbox
+echo '{"type": "quiz", "topic": "photosynthesis", "grade": 6}' > dropzones/inbox/quiz.json
+
+# Process with dropzone
+python ada_dropzone.py --once
+
+# Output:
+[OK] Processing: quiz.json
+[OK] Content type: quiz_json
+[OK] Generated task: Create a quiz about photosynthesis for grade 6 with 4 questions
+[OK] Completed in 0.1s
+```
+
+**Multi-Ion Audit Example:**
+```bash
+# Drop audit request
+echo '{"type": "audit", "path": "./"}' > dropzones/inbox/audit.json
+
+# Process - triggers 4-Ion pipeline
+python ada_dropzone.py --once
+
+# Wave 1 (Parallel): duplicate-detector, dead-code-eliminator, code-grouper
+# Wave 2 (Sequential): refactor-planner
+# Total: 5.0s | 4/4 successful
+```
+
+**Files Created:**
+- `ada_dropzone.py`: Complete dropzone processor (477 lines)
+- `dropzones/` directory structure
+
+---
+
+## [PREVIOUS] Updates (Nov 25, 2025 - Night)
 
 ### Phase 3A: Observability Infrastructure [COMPLETE]
 **Mission:** ALPHA built data collection for execution tracing
