@@ -1,0 +1,62 @@
+ion_name: "Dead Code Eliminator Ion"
+version: "1.0.0"
+
+# Analysis settings
+analysis:
+  check_functions: true
+  check_classes: true
+  check_variables: true
+  check_imports: true
+  check_files: true
+  check_dependencies: true
+
+# Entry points (files that are always considered "used")
+entry_points:
+  - "index.ts"
+  - "main.ts"
+  - "app.ts"
+  - "server.ts"
+  - "index.js"
+  - "main.js"
+  - "*.config.js"
+  - "*.config.ts"
+
+# Ignore patterns
+ignore_patterns:
+  - "**/node_modules/**"
+  - "**/dist/**"
+  - "**/build/**"
+  - "**/.git/**"
+  - "**/coverage/**"
+  - "**/test/**"
+  - "**/tests/**"
+  - "**/__tests__/**"
+  - "**/*.test.ts"
+  - "**/*.test.js"
+  - "**/*.spec.ts"
+  - "**/*.spec.js"
+
+# File extensions to analyze
+file_extensions:
+  - ".ts"
+  - ".tsx"
+  - ".js"
+  - ".jsx"
+
+# Dependency check settings
+dependencies:
+  check_package_json: true
+  check_devDependencies: false  # Don't flag dev dependencies as unused
+  ignore_types_packages: true   # Ignore @types/* packages
+
+# Size thresholds for priority
+size_thresholds:
+  critical_kb: 100    # Files >100KB = critical priority
+  high_kb: 50         # Files >50KB = high priority
+  medium_kb: 10       # Files >10KB = medium priority
+
+# Safety settings
+safety:
+  generate_backup_script: true
+  require_confirmation: true
+  preserve_git_history: true

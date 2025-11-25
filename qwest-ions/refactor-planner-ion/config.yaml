@@ -1,0 +1,31 @@
+ion_name: "Refactor Planner Ion"
+version: "1.0.0"
+
+# Prioritization weights (0-1)
+weights:
+  impact: 0.4              # Impact on codebase quality
+  effort: 0.3              # Estimated effort (inverse)
+  risk: 0.2                # Risk level (inverse)
+  dependencies: 0.1        # Dependency complexity
+
+# Phase definitions
+phases:
+  quick_wins:              # Phase 1: Quick wins
+    max_effort_hours: 4
+    min_roi: 2.0
+
+  medium_refactors:        # Phase 2: Medium effort
+    max_effort_hours: 16
+    min_roi: 1.5
+
+  large_refactors:         # Phase 3: Large refactors
+    max_effort_hours: 40
+    min_roi: 1.0
+
+# Dashboard settings
+dashboard:
+  title: "Code Cleanup Refactor Roadmap"
+  show_metrics: true
+  show_timeline: true
+  show_progress: true
+  theme: "dark"

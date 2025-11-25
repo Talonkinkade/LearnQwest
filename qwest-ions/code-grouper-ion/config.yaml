@@ -1,0 +1,33 @@
+ion_name: "Code Grouper Ion"
+version: "1.0.0"
+
+# Grouping strategies
+strategies:
+  - "functional"     # Group by feature/functionality
+  - "layered"        # Group by layer (ui, logic, data)
+  - "domain"         # Group by business domain
+
+# Analysis settings
+analysis:
+  min_group_size: 2              # Minimum files to form a group
+  confidence_threshold: 0.7      # Minimum confidence (0-1) to suggest move
+  max_depth: 5                   # Maximum directory nesting level
+
+# Patterns to preserve
+preserve_patterns:
+  - "**/index.ts"
+  - "**/index.js"
+  - "**/*.config.*"
+  - "**/*.test.*"
+  - "**/*.spec.*"
+
+# Ignore patterns
+ignore_patterns:
+  - "**/node_modules/**"
+  - "**/dist/**"
+  - "**/.git/**"
+
+# Git preservation
+git:
+  use_git_mv: true               # Use 'git mv' instead of 'mv'
+  generate_rollback: true        # Generate rollback scripts

@@ -1,0 +1,125 @@
+# Omnisearch Qwest-ion Configuration
+# BMAD-compliant configuration for production deployment
+
+agent:
+  id: "learnqwest/qwest-ions/omnisearch"
+  name: "Omnisearch"
+  version: "1.0.0"
+  description: "Multi-source educational content search"
+
+# Search Tools Configuration
+tools:
+  youtube:
+    enabled: true
+    api_key_env: "YOUTUBE_API_KEY"
+    max_results: 10
+    timeout_ms: 2000
+    retry_attempts: 3
+
+  google:
+    enabled: true
+    api_key_env: "GOOGLE_API_KEY"
+    cx_env: "GOOGLE_CX"
+    max_results: 10
+    timeout_ms: 2000
+    retry_attempts: 3
+
+  scholar:
+    enabled: true
+    max_results: 5
+    timeout_ms: 3000
+    retry_attempts: 3
+    # Uses Serpapi or similar service
+    api_key_env: "SERPAPI_KEY"
+
+  khan:
+    enabled: true
+    max_results: 5
+    timeout_ms: 2000
+    retry_attempts: 3
+    # Khan Academy API
+
+  reddit:
+    enabled: true
+    client_id_env: "REDDIT_CLIENT_ID"
+    client_secret_env: "REDDIT_CLIENT_SECRET"
+    max_results: 5
+    timeout_ms: 2000
+    retry_attempts: 3
+
+  stackoverflow:
+    enabled: true
+    max_results: 5
+    timeout_ms: 2000
+    retry_attempts: 3
+    # Stack Exchange API
+
+  wikipedia:
+    enabled: true
+    max_results: 3
+    timeout_ms: 2000
+    retry_attempts: 3
+
+  arxiv:
+    enabled: true
+    max_results: 5
+    timeout_ms: 3000
+    retry_attempts: 3
+
+# Execution Configuration
+execution:
+  parallel: true
+  overall_timeout_ms: 10000
+  min_results: 10  # Minimum to return success
+  max_results: 50  # Maximum total results
+
+# Result Ranking
+ranking:
+  boost_educational: true
+  boost_recent: true
+  diversity_weight: 0.3  # Balance between relevance and diversity
+
+# Logging
+logging:
+  level: "info"  # debug | info | warn | error
+  format: "json"
+  output: "stdout"
+  file: null  # Set path for file logging
+
+# E2B Sandbox Configuration
+e2b:
+  enabled: false  # Set true when deploying to E2B
+  template_id: "learnqwest-omnisearch"
+  timeout_ms: 15000
+  memory_mb: 512
+  env_vars:
+    NODE_ENV: "production"
+
+# Rate Limiting
+rate_limit:
+  enabled: true
+  requests_per_minute: 100
+  burst: 20
+
+# Caching
+cache:
+  enabled: true
+  ttl_seconds: 3600  # 1 hour
+  max_size_mb: 100
+  backend: "memory"  # memory | redis
+
+# Monitoring
+monitoring:
+  enabled: true
+  report_interval_ms: 60000
+  metrics:
+    - execution_time
+    - success_rate
+    - results_count
+    - tool_failures
+
+# Development
+development:
+  mock_apis: true  # Use mock responses for testing (set false when API keys configured)
+  verbose_logging: true
+  save_requests: false  # Save requests for debugging

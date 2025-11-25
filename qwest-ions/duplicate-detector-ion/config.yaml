@@ -1,0 +1,44 @@
+ion_name: "Duplicate Detector Ion"
+version: "1.0.0"
+
+# Similarity thresholds
+similarity_thresholds:
+  exact_match: 100          # 100% match for exact duplicates
+  similar_match_min: 55     # Minimum similarity for "similar" classification
+  similar_match_max: 95     # Maximum similarity before considered exact
+
+# Ignore patterns (glob-style)
+ignore_patterns:
+  - "**/node_modules/**"
+  - "**/dist/**"
+  - "**/build/**"
+  - "**/.git/**"
+  - "**/coverage/**"
+  - "**/*.min.js"
+  - "**/*.bundle.js"
+  - "**/vendor/**"
+  - "**/test_*.py"
+  - "**/__pycache__/**"
+
+# Minimum lines to consider as duplicate
+minimum_lines: 5
+
+# File extensions to analyze
+file_extensions:
+  - ".ts"
+  - ".tsx"
+  - ".js"
+  - ".jsx"
+  - ".py"
+  - ".md"
+  - ".yaml"
+  - ".yml"
+  - ".json"
+
+# Refactor priority rules
+refactor_priority_rules:
+  critical_lines: 100       # >100 lines duplicated = critical
+  high_lines: 50            # >50 lines duplicated = high
+  medium_lines: 20          # >20 lines duplicated = medium
+  critical_occurrences: 5   # >5 occurrences = critical
+  high_occurrences: 3       # >3 occurrences = high
