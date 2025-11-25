@@ -23,13 +23,14 @@ import logging
 # Setup logging
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - [LearnQwest™ ADA] - %(levelname)s - %(message)s'
+    format="%(asctime)s - [LearnQwest™ ADA] - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger("LearnQwest_ADA")
 
 
 class TaskStatus(Enum):
     """Task execution states"""
+
     QUEUED = "queued"
     ANALYZING = "analyzing"
     ROUTING = "routing"
@@ -41,6 +42,7 @@ class TaskStatus(Enum):
 
 class TaskPriority(Enum):
     """Task priority levels"""
+
     LOW = 1
     NORMAL = 2
     HIGH = 3
@@ -49,6 +51,7 @@ class TaskPriority(Enum):
 
 class QuestDomain(Enum):
     """Learning domains for quest categorization"""
+
     MATH = "math"
     READING = "reading"
     SCIENCE = "science"
@@ -60,6 +63,7 @@ class QuestDomain(Enum):
 @dataclass
 class LearningTask:
     """Represents a learning task (student work to analyze)"""
+
     id: str
     description: str
     domain: QuestDomain
@@ -94,6 +98,7 @@ class LearningTask:
 @dataclass
 class AgentExecutionResult:
     """Result from an agent execution"""
+
     agent_name: str
     status: str
     output: Any
@@ -105,6 +110,7 @@ class AgentExecutionResult:
 # =============================================================================
 # NEW: ION BRIDGE - Execute real Bun/TypeScript Ions via subprocess
 # =============================================================================
+
 
 class IonBridge:
     """
@@ -124,11 +130,20 @@ class IonBridge:
         "dead-code-eliminator-ion": "dead-code-eliminator-ion",
         "code-grouper-ion": "code-grouper-ion",
         "refactor-planner-ion": "refactor-planner-ion",
+        # ALPHA's new Ions (Nov 25, 2025)
+        "content-fetcher-ion": "content-fetcher-ion",
+        "content-fetcher": "content-fetcher-ion",  # Alias
+        "context-builder-ion": "context-builder-ion",
+        "context-builder": "context-builder-ion",  # Alias
+        "quiz-generator-ion": "quiz-generator-ion",
+        "quiz-generator": "quiz-generator-ion",  # Alias
     }
 
     def __init__(self):
         self.available_ions = self._discover_ions()
-        logger.info(f"IonBridge initialized with {len(self.available_ions)} available Ions")
+        logger.info(
+            f"IonBridge initialized with {len(self.available_ions)} available Ions"
+        )
 
     def _discover_ions(self) -> List[str]:
         """Discover which Ions are available"""
@@ -147,10 +162,7 @@ class IonBridge:
         return agent_name in self.available_ions
 
     async def execute_ion(
-        self,
-        ion_name: str,
-        task_description: str,
-        timeout_seconds: int = 30
+        self, ion_name: str, task_description: str, timeout_seconds: int = 30
     ) -> Dict[str, Any]:
         """
         Execute a real Ion via Bun subprocess.
@@ -159,6 +171,7 @@ class IonBridge:
             Dict with keys: success, output, error, execution_time_ms
         """
         import time
+
         start_time = time.time()
 
         if ion_name not in self.ION_REGISTRY:
@@ -166,7 +179,7 @@ class IonBridge:
                 "success": False,
                 "output": None,
                 "error": f"Unknown Ion: {ion_name}",
-                "execution_time_ms": 0
+                "execution_time_ms": 0,
             }
 
         ion_dir = self.IONS_DIR / self.ION_REGISTRY[ion_name]
@@ -177,26 +190,120 @@ class IonBridge:
 
             if ion_name == "omnisearch":
                 # Omnisearch needs external APIs - check if configured
-                cmd = [bun_cmd, "run", "src/index.ts", "--query", task_description[:200]]
+                cmd = [
+                    bun_cmd,
+                    "run",
+                    "src/index.ts",
+                    "--query",
+                    task_description[:200],
+                ]
             elif ion_name == "quality-assessor":
                 # Quality assessor needs an input file - create temp input with proper schema
                 import tempfile
+
                 temp_input = Path(tempfile.gettempdir()) / "ada_quality_input.json"
-                temp_input.write_text(json.dumps([{
-                    "id": f"task_{uuid.uuid4().hex[:8]}",
-                    "title": task_description[:100],
-                    "url": "https://learnqwest.local/task",
-                    "source": "youtube",  # Use valid source
-                    "type": "video",  # Use valid type
-                    "description": task_description,
-                    "views": 10000,
-                    "likes": 500,
-                    "duration": "10:00"
-                }]))
-                cmd = [bun_cmd, "run", "src/index.ts", "--input", str(temp_input), "--mode", "testing"]
+                temp_input.write_text(
+                    json.dumps(
+                        [
+                            {
+                                "id": f"task_{uuid.uuid4().hex[:8]}",
+                                "title": task_description[:100],
+                                "url": "https://learnqwest.local/task",
+                                "source": "youtube",  # Use valid source
+                                "type": "video",  # Use valid type
+                                "description": task_description,
+                                "views": 10000,
+                                "likes": 500,
+                                "duration": "10:00",
+                            }
+                        ]
+                    )
+                )
+                cmd = [
+                    bun_cmd,
+                    "run",
+                    "src/index.ts",
+                    "--input",
+                    str(temp_input),
+                    "--mode",
+                    "testing",
+                ]
+            elif ion_name in ["quiz-generator-ion", "quiz-generator"]:
+                # Quiz generator needs content and topic
+                import tempfile
+
+                temp_input = Path(tempfile.gettempdir()) / "ada_quiz_input.json"
+
+                # Extract topic from task description
+                topic = (
+                    task_description.split("about")[-1].strip()
+                    if "about" in task_description
+                    else "General Topic"
+                )
+
+                # Generate educational content about the topic (minimum 50 chars required)
+                content = f"""Educational content about {topic}:
+
+This topic covers fundamental concepts and practical applications. Students will learn key principles, understand real-world examples, and develop problem-solving skills related to {topic}. The material is designed to be engaging and accessible while maintaining academic rigor appropriate for the grade level.
+
+Key learning objectives include understanding core concepts, applying knowledge to practical scenarios, and developing critical thinking skills in this subject area."""
+
+                temp_input.write_text(
+                    json.dumps(
+                        {
+                            "content": content,
+                            "topic": topic,
+                            "grade_level": "6-8",
+                            "num_questions": 5,
+                            "question_types": [
+                                "multiple_choice",
+                                "true_false",
+                                "short_answer",
+                            ],
+                        }
+                    )
+                )
+                cmd = [bun_cmd, "run", "src/index.ts", "-i", str(temp_input)]
+            elif ion_name in ["context-builder-ion", "context-builder"]:
+                # Context builder analyzes git and files
+                cmd = [bun_cmd, "run", "src/index.ts", "--verbose"]
+            elif ion_name in ["content-fetcher-ion", "content-fetcher"]:
+                # Content fetcher needs URL or search query
+                import tempfile
+
+                temp_input = Path(tempfile.gettempdir()) / "ada_content_input.json"
+                # Extract URL or use as search query
+                temp_input.write_text(
+                    json.dumps(
+                        {
+                            "sources": [
+                                {
+                                    "type": "web",
+                                    "url": "https://example.com",
+                                    "query": task_description,
+                                }
+                            ]
+                        }
+                    )
+                )
+                cmd = [bun_cmd, "run", "src/index.ts", "-i", str(temp_input)]
+            elif ion_name in [
+                "duplicate-detector-ion",
+                "dead-code-eliminator-ion",
+                "code-grouper-ion",
+                "refactor-planner-ion",
+            ]:
+                # Code analysis Ions - run with project root
+                cmd = [
+                    bun_cmd,
+                    "run",
+                    "src/index.ts",
+                    "--project",
+                    str(self.IONS_DIR.parent),
+                ]
             else:
-                # Generic execution for other ions (duplicate-detector, dead-code-eliminator, etc.)
-                cmd = [bun_cmd, "run", "src/index.ts", "--help"]  # Show help as fallback
+                # Generic execution - run without args (will use defaults)
+                cmd = [bun_cmd, "run", "src/index.ts"]
 
             logger.info(f"Executing Ion: {ion_name} with command: {' '.join(cmd)}")
 
@@ -205,13 +312,12 @@ class IonBridge:
                 *cmd,
                 cwd=str(ion_dir),
                 stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE
+                stderr=asyncio.subprocess.PIPE,
             )
 
             try:
                 stdout, stderr = await asyncio.wait_for(
-                    process.communicate(),
-                    timeout=timeout_seconds
+                    process.communicate(), timeout=timeout_seconds
                 )
             except asyncio.TimeoutError:
                 process.kill()
@@ -219,14 +325,14 @@ class IonBridge:
                     "success": False,
                     "output": None,
                     "error": f"Ion timed out after {timeout_seconds}s",
-                    "execution_time_ms": (time.time() - start_time) * 1000
+                    "execution_time_ms": (time.time() - start_time) * 1000,
                 }
 
             execution_time_ms = (time.time() - start_time) * 1000
 
             if process.returncode == 0:
                 # Try to parse JSON output
-                output_str = stdout.decode('utf-8', errors='replace')
+                output_str = stdout.decode("utf-8", errors="replace")
                 try:
                     output = json.loads(output_str)
                 except json.JSONDecodeError:
@@ -237,16 +343,16 @@ class IonBridge:
                     "success": True,
                     "output": output,
                     "error": None,
-                    "execution_time_ms": execution_time_ms
+                    "execution_time_ms": execution_time_ms,
                 }
             else:
-                error_str = stderr.decode('utf-8', errors='replace')
+                error_str = stderr.decode("utf-8", errors="replace")
                 logger.error(f"Ion {ion_name} failed: {error_str[:200]}")
                 return {
                     "success": False,
                     "output": None,
                     "error": error_str[:500],
-                    "execution_time_ms": execution_time_ms
+                    "execution_time_ms": execution_time_ms,
                 }
 
         except FileNotFoundError:
@@ -254,14 +360,14 @@ class IonBridge:
                 "success": False,
                 "output": None,
                 "error": "Bun not found. Install from https://bun.sh",
-                "execution_time_ms": (time.time() - start_time) * 1000
+                "execution_time_ms": (time.time() - start_time) * 1000,
             }
         except Exception as e:
             return {
                 "success": False,
                 "output": None,
                 "error": str(e),
-                "execution_time_ms": (time.time() - start_time) * 1000
+                "execution_time_ms": (time.time() - start_time) * 1000,
             }
 
     def list_ions(self) -> List[str]:
@@ -273,8 +379,10 @@ class IonBridge:
 # NEW: ROUTING SPINE - Content-type to Agent matching
 # =============================================================================
 
+
 class ContentType(Enum):
     """Content types that ADA can route"""
+
     YOUTUBE_VIDEO = "youtube_video"
     CODE_FILE = "code_file"
     DOCUMENT = "document"
@@ -286,6 +394,7 @@ class ContentType(Enum):
 
 class AgentCapability(Enum):
     """What agents can do"""
+
     SEARCH = "search"
     ANALYZE = "analyze"
     GENERATE = "generate"
@@ -297,6 +406,7 @@ class AgentCapability(Enum):
 @dataclass
 class AgentRoute:
     """Routing definition for an agent"""
+
     agent_name: str
     handles_content: List[ContentType]
     capabilities: List[AgentCapability]
@@ -319,56 +429,74 @@ class RoutingSpine:
     def _register_default_routes(self):
         """Register default agent routes"""
         # Omnisearch Ion - handles search queries
-        self.register_route(AgentRoute(
-            agent_name="omnisearch",
-            handles_content=[ContentType.SEARCH_QUERY, ContentType.QUESTION],
-            capabilities=[AgentCapability.SEARCH],
-            priority=10
-        ))
+        self.register_route(
+            AgentRoute(
+                agent_name="omnisearch",
+                handles_content=[ContentType.SEARCH_QUERY, ContentType.QUESTION],
+                capabilities=[AgentCapability.SEARCH],
+                priority=10,
+            )
+        )
 
         # Quality Assessor - analyzes content quality
-        self.register_route(AgentRoute(
-            agent_name="quality-assessor",
-            handles_content=[ContentType.DOCUMENT, ContentType.CODE_FILE],
-            capabilities=[AgentCapability.ASSESS, AgentCapability.ANALYZE],
-            priority=8
-        ))
+        self.register_route(
+            AgentRoute(
+                agent_name="quality-assessor",
+                handles_content=[ContentType.DOCUMENT, ContentType.CODE_FILE],
+                capabilities=[AgentCapability.ASSESS, AgentCapability.ANALYZE],
+                priority=8,
+            )
+        )
 
         # Code analysis agents
-        self.register_route(AgentRoute(
-            agent_name="duplicate-detector-ion",
-            handles_content=[ContentType.CODE_FILE],
-            capabilities=[AgentCapability.ANALYZE],
-            priority=5
-        ))
+        self.register_route(
+            AgentRoute(
+                agent_name="duplicate-detector-ion",
+                handles_content=[ContentType.CODE_FILE],
+                capabilities=[AgentCapability.ANALYZE],
+                priority=5,
+            )
+        )
 
-        self.register_route(AgentRoute(
-            agent_name="refactor-planner-ion",
-            handles_content=[ContentType.CODE_FILE],
-            capabilities=[AgentCapability.REFACTOR, AgentCapability.ANALYZE],
-            priority=5
-        ))
+        self.register_route(
+            AgentRoute(
+                agent_name="refactor-planner-ion",
+                handles_content=[ContentType.CODE_FILE],
+                capabilities=[AgentCapability.REFACTOR, AgentCapability.ANALYZE],
+                priority=5,
+            )
+        )
 
         # Claude-Code for code generation/explanation
-        self.register_route(AgentRoute(
-            agent_name="claude-code",
-            handles_content=[ContentType.CODE_FILE, ContentType.QUESTION],
-            capabilities=[AgentCapability.GENERATE, AgentCapability.EXPLAIN, AgentCapability.REFACTOR],
-            priority=9
-        ))
+        self.register_route(
+            AgentRoute(
+                agent_name="claude-code",
+                handles_content=[ContentType.CODE_FILE, ContentType.QUESTION],
+                capabilities=[
+                    AgentCapability.GENERATE,
+                    AgentCapability.EXPLAIN,
+                    AgentCapability.REFACTOR,
+                ],
+                priority=9,
+            )
+        )
 
         # YouTube content handler
-        self.register_route(AgentRoute(
-            agent_name="youtube-extractor",
-            handles_content=[ContentType.YOUTUBE_VIDEO],
-            capabilities=[AgentCapability.ANALYZE, AgentCapability.GENERATE],
-            priority=10
-        ))
+        self.register_route(
+            AgentRoute(
+                agent_name="youtube-extractor",
+                handles_content=[ContentType.YOUTUBE_VIDEO],
+                capabilities=[AgentCapability.ANALYZE, AgentCapability.GENERATE],
+                priority=10,
+            )
+        )
 
     def register_route(self, route: AgentRoute):
         """Register a new agent route"""
         self.routes.append(route)
-        logger.debug(f"Registered route: {route.agent_name} for {[c.value for c in route.handles_content]}")
+        logger.debug(
+            f"Registered route: {route.agent_name} for {[c.value for c in route.handles_content]}"
+        )
 
     def detect_content_type(self, content: str) -> ContentType:
         """Detect the type of content from the input"""
@@ -379,22 +507,32 @@ class RoutingSpine:
             return ContentType.YOUTUBE_VIDEO
 
         # Code file detection
-        code_extensions = ['.py', '.ts', '.js', '.tsx', '.jsx', '.java', '.go', '.rs']
+        code_extensions = [".py", ".ts", ".js", ".tsx", ".jsx", ".java", ".go", ".rs"]
         if any(ext in content_lower for ext in code_extensions):
             return ContentType.CODE_FILE
 
         # Code pattern detection
-        code_patterns = ['def ', 'function ', 'class ', 'import ', 'const ', 'let ', 'var ']
+        code_patterns = [
+            "def ",
+            "function ",
+            "class ",
+            "import ",
+            "const ",
+            "let ",
+            "var ",
+        ]
         if any(pattern in content for pattern in code_patterns):
             return ContentType.CODE_FILE
 
         # Search query detection
-        search_words = ['find', 'search', 'look for', 'where is', 'how to find']
+        search_words = ["find", "search", "look for", "where is", "how to find"]
         if any(word in content_lower for word in search_words):
             return ContentType.SEARCH_QUERY
 
         # Question detection
-        if content.strip().endswith('?') or content_lower.startswith(('what', 'how', 'why', 'when', 'where', 'who')):
+        if content.strip().endswith("?") or content_lower.startswith(
+            ("what", "how", "why", "when", "where", "who")
+        ):
             return ContentType.QUESTION
 
         # Document detection
@@ -407,15 +545,25 @@ class RoutingSpine:
         """Detect what capability is needed"""
         content_lower = content.lower()
 
-        if any(word in content_lower for word in ['search', 'find', 'look for']):
+        if any(word in content_lower for word in ["search", "find", "look for"]):
             return AgentCapability.SEARCH
-        if any(word in content_lower for word in ['analyze', 'assess', 'evaluate', 'review']):
+        if any(
+            word in content_lower
+            for word in ["analyze", "assess", "evaluate", "review"]
+        ):
             return AgentCapability.ANALYZE
-        if any(word in content_lower for word in ['generate', 'create', 'write', 'build', 'make']):
+        if any(
+            word in content_lower
+            for word in ["generate", "create", "write", "build", "make"]
+        ):
             return AgentCapability.GENERATE
-        if any(word in content_lower for word in ['refactor', 'improve', 'optimize', 'fix']):
+        if any(
+            word in content_lower for word in ["refactor", "improve", "optimize", "fix"]
+        ):
             return AgentCapability.REFACTOR
-        if any(word in content_lower for word in ['explain', 'what is', 'how does', 'why']):
+        if any(
+            word in content_lower for word in ["explain", "what is", "how does", "why"]
+        ):
             return AgentCapability.EXPLAIN
 
         return AgentCapability.ANALYZE  # Default
@@ -428,7 +576,9 @@ class RoutingSpine:
         content_type = self.detect_content_type(content)
         capability = self.detect_required_capability(content)
 
-        logger.info(f"Routing: content_type={content_type.value}, capability={capability.value}")
+        logger.info(
+            f"Routing: content_type={content_type.value}, capability={capability.value}"
+        )
 
         # Find matching routes
         matches = []
@@ -458,8 +608,12 @@ class RoutingSpine:
             if route.agent_name == agent_name:
                 # Exponential moving average
                 alpha = 0.1
-                route.success_rate = alpha * (1.0 if success else 0.0) + (1 - alpha) * route.success_rate
-                logger.debug(f"Updated {agent_name} success_rate to {route.success_rate:.2f}")
+                route.success_rate = (
+                    alpha * (1.0 if success else 0.0) + (1 - alpha) * route.success_rate
+                )
+                logger.debug(
+                    f"Updated {agent_name} success_rate to {route.success_rate:.2f}"
+                )
                 break
 
 
@@ -467,9 +621,11 @@ class RoutingSpine:
 # NEW: FEEDBACK LOOP - Learning from execution outcomes
 # =============================================================================
 
+
 @dataclass
 class FeedbackEntry:
     """A single feedback entry for learning"""
+
     timestamp: str
     task_id: str
     content_type: str
@@ -491,13 +647,15 @@ class FeedbackLoop:
         self.feedback_file = feedback_file or Path("ada_feedback.jsonl")
         self.entries: List[FeedbackEntry] = []
         self._load_history()
-        logger.info(f"FeedbackLoop initialized with {len(self.entries)} historical entries")
+        logger.info(
+            f"FeedbackLoop initialized with {len(self.entries)} historical entries"
+        )
 
     def _load_history(self):
         """Load feedback history from file"""
         if self.feedback_file.exists():
             try:
-                with open(self.feedback_file, 'r') as f:
+                with open(self.feedback_file, "r") as f:
                     for line in f:
                         if line.strip():
                             data = json.loads(line)
@@ -513,7 +671,7 @@ class FeedbackLoop:
         success: bool,
         execution_time_ms: float,
         user_rating: Optional[int] = None,
-        notes: Optional[str] = None
+        notes: Optional[str] = None,
     ):
         """Record feedback from a task execution"""
         entry = FeedbackEntry(
@@ -524,15 +682,15 @@ class FeedbackLoop:
             success=success,
             execution_time_ms=execution_time_ms,
             user_rating=user_rating,
-            notes=notes
+            notes=notes,
         )
 
         self.entries.append(entry)
 
         # Append to file
         try:
-            with open(self.feedback_file, 'a') as f:
-                f.write(json.dumps(asdict(entry)) + '\n')
+            with open(self.feedback_file, "a") as f:
+                f.write(json.dumps(asdict(entry)) + "\n")
         except Exception as e:
             logger.error(f"Could not write feedback: {e}")
 
@@ -552,7 +710,8 @@ class FeedbackLoop:
             "total": len(agent_entries),
             "success_rate": successes / len(agent_entries),
             "avg_time_ms": total_time / len(agent_entries),
-            "avg_rating": sum(e.user_rating for e in agent_entries if e.user_rating) / max(1, sum(1 for e in agent_entries if e.user_rating))
+            "avg_rating": sum(e.user_rating for e in agent_entries if e.user_rating)
+            / max(1, sum(1 for e in agent_entries if e.user_rating)),
         }
 
     def suggest_improvements(self) -> List[str]:
@@ -567,9 +726,13 @@ class FeedbackLoop:
         for agent in agent_names:
             stats = self.get_agent_stats(agent)
             if stats["total"] >= 5 and stats["success_rate"] < 0.7:
-                suggestions.append(f"Agent '{agent}' has low success rate ({stats['success_rate']:.0%}). Consider reviewing or replacing.")
+                suggestions.append(
+                    f"Agent '{agent}' has low success rate ({stats['success_rate']:.0%}). Consider reviewing or replacing."
+                )
             if stats["avg_time_ms"] > 10000:
-                suggestions.append(f"Agent '{agent}' is slow (avg {stats['avg_time_ms']:.0f}ms). Consider optimization.")
+                suggestions.append(
+                    f"Agent '{agent}' is slow (avg {stats['avg_time_ms']:.0f}ms). Consider optimization."
+                )
 
         return suggestions
 
@@ -577,6 +740,7 @@ class FeedbackLoop:
 # =============================================================================
 # NEW: JSONL LOGGER - Structured logging for analytics
 # =============================================================================
+
 
 class JSONLLogger:
     """
@@ -589,7 +753,10 @@ class JSONLLogger:
         self.log_dir = log_dir or Path("ada_logs")
         self.log_dir.mkdir(exist_ok=True)
         self.session_id = str(uuid.uuid4())[:8]
-        self.log_file = self.log_dir / f"ada_{datetime.now().strftime('%Y%m%d')}_{self.session_id}.jsonl"
+        self.log_file = (
+            self.log_dir
+            / f"ada_{datetime.now().strftime('%Y%m%d')}_{self.session_id}.jsonl"
+        )
         logger.info(f"JSONLLogger writing to {self.log_file}")
 
     def _write(self, event_type: str, data: Dict[str, Any]):
@@ -598,55 +765,66 @@ class JSONLLogger:
             "timestamp": datetime.now().isoformat(),
             "session_id": self.session_id,
             "event_type": event_type,
-            **data
+            **data,
         }
 
         try:
-            with open(self.log_file, 'a') as f:
-                f.write(json.dumps(entry) + '\n')
+            with open(self.log_file, "a") as f:
+                f.write(json.dumps(entry) + "\n")
         except Exception as e:
             logger.error(f"Log write failed: {e}")
 
     def task_submitted(self, task_id: str, description: str, domain: str):
         """Log task submission"""
-        self._write("task_submitted", {
-            "task_id": task_id,
-            "description": description[:200],
-            "domain": domain
-        })
+        self._write(
+            "task_submitted",
+            {"task_id": task_id, "description": description[:200], "domain": domain},
+        )
 
     def routing_decision(self, task_id: str, content_type: str, agents: List[str]):
         """Log routing decision"""
-        self._write("routing_decision", {
-            "task_id": task_id,
-            "content_type": content_type,
-            "agents_selected": agents
-        })
+        self._write(
+            "routing_decision",
+            {
+                "task_id": task_id,
+                "content_type": content_type,
+                "agents_selected": agents,
+            },
+        )
 
-    def agent_execution(self, task_id: str, agent_name: str, success: bool, time_ms: float, error: Optional[str] = None):
+    def agent_execution(
+        self,
+        task_id: str,
+        agent_name: str,
+        success: bool,
+        time_ms: float,
+        error: Optional[str] = None,
+    ):
         """Log agent execution"""
-        self._write("agent_execution", {
-            "task_id": task_id,
-            "agent_name": agent_name,
-            "success": success,
-            "execution_time_ms": time_ms,
-            "error": error
-        })
+        self._write(
+            "agent_execution",
+            {
+                "task_id": task_id,
+                "agent_name": agent_name,
+                "success": success,
+                "execution_time_ms": time_ms,
+                "error": error,
+            },
+        )
 
     def task_completed(self, task_id: str, success: bool, total_time_ms: float):
         """Log task completion"""
-        self._write("task_completed", {
-            "task_id": task_id,
-            "success": success,
-            "total_time_ms": total_time_ms
-        })
+        self._write(
+            "task_completed",
+            {"task_id": task_id, "success": success, "total_time_ms": total_time_ms},
+        )
 
     def get_session_stats(self) -> Dict[str, Any]:
         """Get stats for current session"""
         stats = {"tasks": 0, "successes": 0, "total_time_ms": 0}
 
         if self.log_file.exists():
-            with open(self.log_file, 'r') as f:
+            with open(self.log_file, "r") as f:
                 for line in f:
                     if line.strip():
                         entry = json.loads(line)
@@ -723,7 +901,7 @@ class TaskQueue:
             "queued": len(self.queue),
             "active": len(self.active_tasks),
             "completed": len(self.completed_tasks),
-            "capacity": self.max_concurrent - len(self.active_tasks)
+            "capacity": self.max_concurrent - len(self.active_tasks),
         }
 
 
@@ -754,17 +932,19 @@ class TaskAnalyzer:
             "capabilities_needed": capabilities,
             "suggested_agents": agent_team,
             "estimated_time": self._estimate_time(complexity),
-            "estimated_cost": self._estimate_cost(complexity, len(agent_team))
+            "estimated_cost": self._estimate_cost(complexity, len(agent_team)),
         }
 
-        logger.info(f"📊 Task analyzed: {task.id} - Complexity: {complexity}, Agents: {len(agent_team)}")
+        logger.info(
+            f"📊 Task analyzed: {task.id} - Complexity: {complexity}, Agents: {len(agent_team)}"
+        )
 
         return analysis
 
     def _assess_complexity(self, description: str) -> str:
         """Assess task complexity"""
-        complex_keywords = ['analyze', 'comprehensive', 'detailed', 'multiple', 'all']
-        medium_keywords = ['explain', 'create', 'generate', 'process']
+        complex_keywords = ["analyze", "comprehensive", "detailed", "multiple", "all"]
+        medium_keywords = ["explain", "create", "generate", "process"]
 
         if any(keyword in description for keyword in complex_keywords):
             return "complex"
@@ -773,72 +953,72 @@ class TaskAnalyzer:
         else:
             return "simple"
 
-    def _identify_capabilities(self, description: str, domain: QuestDomain) -> List[str]:
+    def _identify_capabilities(
+        self, description: str, domain: QuestDomain
+    ) -> List[str]:
         """Identify required agent capabilities"""
         capabilities = []
 
         # Domain-specific capabilities
         if domain == QuestDomain.MATH:
-            if 'algebra' in description:
-                capabilities.append('algebra_specialist')
-            if 'geometry' in description:
-                capabilities.append('geometry_specialist')
-            if 'word problem' in description:
-                capabilities.append('problem_solving')
+            if "algebra" in description:
+                capabilities.append("algebra_specialist")
+            if "geometry" in description:
+                capabilities.append("geometry_specialist")
+            if "word problem" in description:
+                capabilities.append("problem_solving")
 
         # General capabilities
-        if 'feedback' in description or 'assess' in description:
-            capabilities.append('assessment')
-        if 'generate' in description or 'create' in description:
-            capabilities.append('content_generation')
-        if 'analyze' in description:
-            capabilities.append('analysis')
+        if "feedback" in description or "assess" in description:
+            capabilities.append("assessment")
+        if "generate" in description or "create" in description:
+            capabilities.append("content_generation")
+        if "analyze" in description:
+            capabilities.append("analysis")
 
-        return capabilities if capabilities else ['general']
+        return capabilities if capabilities else ["general"]
 
-    def _suggest_agents(self, domain: QuestDomain, complexity: str, capabilities: List[str]) -> List[str]:
+    def _suggest_agents(
+        self, domain: QuestDomain, complexity: str, capabilities: List[str]
+    ) -> List[str]:
         """Suggest optimal agent team"""
 
         # Base agents by domain
         agent_map = {
-            QuestDomain.MATH: ['math-quest-agent', 'problem-solver-agent', 'feedback-generator'],
-            QuestDomain.READING: ['reading-comprehension-agent', 'analysis-agent'],
-            QuestDomain.SCIENCE: ['science-quest-agent', 'experiment-analyzer'],
-            QuestDomain.SOCIAL_STUDIES: ['history-agent', 'geography-agent'],
-            QuestDomain.CREATIVE: ['creative-writing-agent', 'art-analysis-agent'],
-            QuestDomain.GENERAL: ['general-learning-agent']
+            QuestDomain.MATH: [
+                "math-quest-agent",
+                "problem-solver-agent",
+                "feedback-generator",
+            ],
+            QuestDomain.READING: ["reading-comprehension-agent", "analysis-agent"],
+            QuestDomain.SCIENCE: ["science-quest-agent", "experiment-analyzer"],
+            QuestDomain.SOCIAL_STUDIES: ["history-agent", "geography-agent"],
+            QuestDomain.CREATIVE: ["creative-writing-agent", "art-analysis-agent"],
+            QuestDomain.GENERAL: ["general-learning-agent"],
         }
 
-        agents = agent_map.get(domain, ['general-learning-agent']).copy()
+        agents = agent_map.get(domain, ["general-learning-agent"]).copy()
 
         # Add complexity-based agents
-        if complexity == 'complex':
-            agents.extend(['advanced-analyzer', 'quality-validator'])
+        if complexity == "complex":
+            agents.extend(["advanced-analyzer", "quality-validator"])
 
         # Add capability-specific agents
-        if 'assessment' in capabilities:
-            agents.append('assessment-specialist')
-        if 'content_generation' in capabilities:
-            agents.append('content-generator')
+        if "assessment" in capabilities:
+            agents.append("assessment-specialist")
+        if "content_generation" in capabilities:
+            agents.append("content-generator")
 
         return agents
 
     def _estimate_time(self, complexity: str) -> int:
         """Estimate execution time in seconds"""
-        time_map = {
-            'simple': 3,
-            'medium': 5,
-            'complex': 10
-        }
+        time_map = {"simple": 3, "medium": 5, "complex": 10}
         return time_map.get(complexity, 5)
 
     def _estimate_cost(self, complexity: str, agent_count: int) -> float:
         """Estimate execution cost in dollars"""
-        cost_per_agent = {
-            'simple': 0.01,
-            'medium': 0.03,
-            'complex': 0.05
-        }
+        cost_per_agent = {"simple": 0.01, "medium": 0.03, "complex": 0.05}
         return cost_per_agent.get(complexity, 0.03) * agent_count
 
 
@@ -855,37 +1035,38 @@ class ExecutionMonitor:
             "failed_tasks": 0,
             "total_cost": 0.0,
             "total_execution_time": 0.0,
-            "agent_usage": {}
+            "agent_usage": {},
         }
         self.active_monitors = {}
 
     def start_monitoring(self, task_id: str):
         """Start monitoring a task"""
-        self.active_monitors[task_id] = {
-            "start_time": datetime.now(),
-            "status_log": []
-        }
+        self.active_monitors[task_id] = {"start_time": datetime.now(), "status_log": []}
         self.metrics["total_tasks"] += 1
         logger.info(f"🔍 Started monitoring task: {task_id}")
 
     def log_progress(self, task_id: str, progress: int, message: str):
         """Log task progress"""
         if task_id in self.active_monitors:
-            self.active_monitors[task_id]["status_log"].append({
-                "timestamp": datetime.now().isoformat(),
-                "progress": progress,
-                "message": message
-            })
+            self.active_monitors[task_id]["status_log"].append(
+                {
+                    "timestamp": datetime.now().isoformat(),
+                    "progress": progress,
+                    "message": message,
+                }
+            )
             logger.info(f"📊 Task {task_id}: {progress}% - {message}")
 
-    def log_agent_execution(self, task_id: str, agent_name: str, result: AgentExecutionResult):
+    def log_agent_execution(
+        self, task_id: str, agent_name: str, result: AgentExecutionResult
+    ):
         """Log agent execution result"""
         # Update agent usage metrics
         if agent_name not in self.metrics["agent_usage"]:
             self.metrics["agent_usage"][agent_name] = {
                 "executions": 0,
                 "total_time": 0.0,
-                "total_cost": 0.0
+                "total_cost": 0.0,
             }
 
         self.metrics["agent_usage"][agent_name]["executions"] += 1
@@ -899,7 +1080,9 @@ class ExecutionMonitor:
         """Complete monitoring for a task"""
         if task_id in self.active_monitors:
             monitor_data = self.active_monitors.pop(task_id)
-            execution_time = (datetime.now() - monitor_data["start_time"]).total_seconds()
+            execution_time = (
+                datetime.now() - monitor_data["start_time"]
+            ).total_seconds()
 
             if success:
                 self.metrics["successful_tasks"] += 1
@@ -912,13 +1095,17 @@ class ExecutionMonitor:
         """Get current metrics"""
         success_rate = 0
         if self.metrics["total_tasks"] > 0:
-            success_rate = (self.metrics["successful_tasks"] / self.metrics["total_tasks"]) * 100
+            success_rate = (
+                self.metrics["successful_tasks"] / self.metrics["total_tasks"]
+            ) * 100
 
         return {
             **self.metrics,
             "success_rate": f"{success_rate:.1f}%",
-            "average_cost": self.metrics["total_cost"] / max(self.metrics["total_tasks"], 1),
-            "average_time": self.metrics["total_execution_time"] / max(self.metrics["total_tasks"], 1)
+            "average_cost": self.metrics["total_cost"]
+            / max(self.metrics["total_tasks"], 1),
+            "average_time": self.metrics["total_execution_time"]
+            / max(self.metrics["total_tasks"], 1),
         }
 
 
@@ -956,17 +1143,21 @@ class ADAOrchestrator:
 
         logger.info("ADA Orchestrator ready!")
         logger.info(f"Max concurrent tasks: {max_concurrent}")
-        logger.info(f"Available agents: {self.routing_spine.list_ions() if hasattr(self.routing_spine, 'list_ions') else len(self.routing_spine.routes)}")
+        logger.info(
+            f"Available agents: {self.routing_spine.list_ions() if hasattr(self.routing_spine, 'list_ions') else len(self.routing_spine.routes)}"
+        )
 
     def load_infrastructure(self):
         """Load existing RAGEFORCE infrastructure"""
         try:
             # Try to import existing components
             import sys
-            sys.path.insert(0, r'C:\Users\talon\OneDrive\Projects\RAGEFORCE')
+
+            sys.path.insert(0, r"C:\Users\talon\OneDrive\Projects\RAGEFORCE")
 
             try:
                 from ragents.AGENT_WRANGLER import AgentWrangler
+
                 self.agent_wrangler = AgentWrangler()
                 logger.info("✅ Agent Wrangler loaded (60+ agents available)")
             except Exception as e:
@@ -975,6 +1166,7 @@ class ADAOrchestrator:
 
             try:
                 from scout_plan_build_orchestrator import ScoutPlanBuildOrchestrator
+
                 self.spb_orchestrator = ScoutPlanBuildOrchestrator()
                 logger.info("✅ Scout-Plan-Build Orchestrator loaded")
             except Exception as e:
@@ -995,7 +1187,7 @@ class ADAOrchestrator:
         student_id: Optional[str] = None,
         grade_level: Optional[int] = None,
         file_path: Optional[str] = None,
-        metadata: Optional[Dict[str, Any]] = None
+        metadata: Optional[Dict[str, Any]] = None,
     ) -> str:
         """
         Submit a learning task for processing
@@ -1014,7 +1206,7 @@ class ADAOrchestrator:
             student_id=student_id,
             grade_level=grade_level,
             file_path=file_path,
-            metadata=metadata or {}
+            metadata=metadata or {},
         )
 
         task_id = await self.task_queue.add_task(task)
@@ -1029,6 +1221,7 @@ class ADAOrchestrator:
     async def process_task(self, task: LearningTask):
         """Process a single task through the complete workflow"""
         import time
+
         start_time = time.time()
 
         self.monitor.start_monitoring(task.id)
@@ -1052,8 +1245,14 @@ class ADAOrchestrator:
             routed_agents = self.routing_spine.route(task.description)
             task.assigned_agents = routed_agents[:5]  # Top 5 agents
 
-            self.jsonl_logger.routing_decision(task.id, content_type.value, task.assigned_agents)
-            self.monitor.log_progress(task.id, 30, f"Routed to {len(task.assigned_agents)} agents: {task.assigned_agents}")
+            self.jsonl_logger.routing_decision(
+                task.id, content_type.value, task.assigned_agents
+            )
+            self.monitor.log_progress(
+                task.id,
+                30,
+                f"Routed to {len(task.assigned_agents)} agents: {task.assigned_agents}",
+            )
 
             # Fallback to Agent Wrangler if available and routing returned generic
             if self.agent_wrangler and "general-learning-agent" in task.assigned_agents:
@@ -1061,7 +1260,9 @@ class ADAOrchestrator:
                 if team and plan:
                     task.assigned_agents = team.agents[:5]
                     task.execution_plan.update({"wrangler_plan": plan})
-                    self.monitor.log_progress(task.id, 40, "Agent team enhanced via Wrangler")
+                    self.monitor.log_progress(
+                        task.id, 40, "Agent team enhanced via Wrangler"
+                    )
 
             # PHASE 3: EXECUTE
             task.status = TaskStatus.EXECUTING
@@ -1083,15 +1284,19 @@ class ADAOrchestrator:
                 content_type=content_type.value,
                 agents_used=task.assigned_agents,
                 success=True,
-                execution_time_ms=total_time_ms
+                execution_time_ms=total_time_ms,
             )
-            self.jsonl_logger.task_completed(task.id, success=True, total_time_ms=total_time_ms)
+            self.jsonl_logger.task_completed(
+                task.id, success=True, total_time_ms=total_time_ms
+            )
 
             # Update routing spine with success
             for agent in task.assigned_agents:
                 self.routing_spine.update_success_rate(agent, success=True)
 
-            logger.info(f"Task {task.id} completed successfully in {total_time_ms:.0f}ms!")
+            logger.info(
+                f"Task {task.id} completed successfully in {total_time_ms:.0f}ms!"
+            )
 
         except Exception as e:
             total_time_ms = (time.time() - start_time) * 1000
@@ -1106,9 +1311,11 @@ class ADAOrchestrator:
                 agents_used=task.assigned_agents,
                 success=False,
                 execution_time_ms=total_time_ms,
-                notes=str(e)
+                notes=str(e),
             )
-            self.jsonl_logger.task_completed(task.id, success=False, total_time_ms=total_time_ms)
+            self.jsonl_logger.task_completed(
+                task.id, success=False, total_time_ms=total_time_ms
+            )
 
             # Update routing spine with failure
             for agent in task.assigned_agents:
@@ -1123,7 +1330,7 @@ class ADAOrchestrator:
             "status": "success",
             "agents_used": task.assigned_agents,
             "outputs": [],
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now().isoformat(),
         }
 
         # Execute each agent
@@ -1139,7 +1346,7 @@ class ADAOrchestrator:
                     ion_result = await self.ion_bridge.execute_ion(
                         ion_name=agent_name,
                         task_description=task.description,
-                        timeout_seconds=30
+                        timeout_seconds=30,
                     )
                     success = ion_result["success"]
                     output = ion_result["output"]
@@ -1166,12 +1373,14 @@ class ADAOrchestrator:
                 output=output,
                 execution_time=agent_time_ms / 1000,
                 cost=0.01,
-                error=error
+                error=error,
             )
 
             # Log to all systems
             self.monitor.log_agent_execution(task.id, agent_name, agent_result)
-            self.jsonl_logger.agent_execution(task.id, agent_name, success, agent_time_ms, error)
+            self.jsonl_logger.agent_execution(
+                task.id, agent_name, success, agent_time_ms, error
+            )
             results["outputs"].append(asdict(agent_result))
 
         # Generate learning feedback
@@ -1179,28 +1388,30 @@ class ADAOrchestrator:
 
         return results
 
-    def generate_learning_feedback(self, task: LearningTask, results: Dict[str, Any]) -> Dict[str, Any]:
+    def generate_learning_feedback(
+        self, task: LearningTask, results: Dict[str, Any]
+    ) -> Dict[str, Any]:
         """Generate personalized learning feedback"""
 
         return {
             "overall_assessment": "Good progress! Here's what we found:",
             "strengths": [
                 "Clear problem-solving approach",
-                "Shows understanding of core concepts"
+                "Shows understanding of core concepts",
             ],
             "areas_for_growth": [
                 "Double-check calculations in final steps",
-                "Add more detailed explanations"
+                "Add more detailed explanations",
             ],
             "next_steps": [
                 "Practice similar problems with different numbers",
-                "Try the advanced challenge problems"
+                "Try the advanced challenge problems",
             ],
             "personalized_resources": [
                 "Video: Understanding place value",
-                "Exercise: Interactive practice problems"
+                "Exercise: Interactive practice problems",
             ],
-            "teacher_insights": f"Student shows mastery of basic concepts. Ready for more challenging work."
+            "teacher_insights": f"Student shows mastery of basic concepts. Ready for more challenging work.",
         }
 
     async def start(self):
@@ -1275,7 +1486,7 @@ class ADAOrchestrator:
             "updated_at": task.updated_at,
             "assigned_agents": task.assigned_agents,
             "results": task.results,
-            "error": task.error
+            "error": task.error,
         }
 
     def get_system_status(self) -> Dict[str, Any]:
@@ -1288,8 +1499,8 @@ class ADAOrchestrator:
             "infrastructure": {
                 "agent_wrangler": self.agent_wrangler is not None,
                 "spb_orchestrator": self.spb_orchestrator is not None,
-                "total_agents": 60 if self.agent_wrangler else 0
-            }
+                "total_agents": 60 if self.agent_wrangler else 0,
+            },
         }
 
 
@@ -1297,9 +1508,9 @@ class ADAOrchestrator:
 async def main():
     """Main CLI interface for testing"""
 
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("🎯 LearnQwest™ ADA Orchestrator - Command Line Interface")
-    print("="*70)
+    print("=" * 70)
 
     # Initialize orchestrator
     ada = ADAOrchestrator(max_concurrent=3)
@@ -1319,13 +1530,13 @@ async def main():
 
             choice = input("\nChoice (1-4): ").strip()
 
-            if choice == '1':
+            if choice == "1":
                 description = input("\nTask description: ").strip()
                 if description:
                     task_id = await ada.submit_task(
                         description=description,
                         domain=QuestDomain.MATH,
-                        priority=TaskPriority.NORMAL
+                        priority=TaskPriority.NORMAL,
                     )
                     print(f"\n✅ Task submitted! ID: {task_id}")
 
@@ -1333,9 +1544,11 @@ async def main():
                     await asyncio.sleep(2)
                     status = ada.get_task_status(task_id)
                     if status:
-                        print(f"\nCurrent status: {status['status']} ({status['progress']}%)")
+                        print(
+                            f"\nCurrent status: {status['status']} ({status['progress']}%)"
+                        )
 
-            elif choice == '2':
+            elif choice == "2":
                 task_id = input("\nTask ID: ").strip()
                 status = ada.get_task_status(task_id)
                 if status:
@@ -1344,12 +1557,12 @@ async def main():
                 else:
                     print("\n❌ Task not found")
 
-            elif choice == '3':
+            elif choice == "3":
                 status = ada.get_system_status()
                 print(f"\n📊 System Status:")
                 print(json.dumps(status, indent=2))
 
-            elif choice == '4':
+            elif choice == "4":
                 print("\n👋 Shutting down ADA...")
                 break
 
