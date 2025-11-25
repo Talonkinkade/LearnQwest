@@ -1,0 +1,4 @@
+{"timestamp": "2025-11-25T12:23:14.588270", "session_id": "a1e90d5b", "event_type": "task_submitted", "task_id": "06660c8e-8052-448e-9ade-918148f52499", "description": "Explain how to add fractions with different denominators", "domain": "math"}
+{"timestamp": "2025-11-25T12:23:14.589562", "session_id": "a1e90d5b", "event_type": "routing_decision", "task_id": "06660c8e-8052-448e-9ade-918148f52499", "content_type": "unknown", "agents_selected": ["claude-code"]}
+{"timestamp": "2025-11-25T12:23:14.892360", "session_id": "a1e90d5b", "event_type": "agent_execution", "task_id": "06660c8e-8052-448e-9ade-918148f52499", "agent_name": "claude-code", "success": true, "execution_time_ms": 302.7985095977783, "error": null}
+{"timestamp": "2025-11-25T12:23:14.894363", "session_id": "a1e90d5b", "event_type": "task_completed", "task_id": "06660c8e-8052-448e-9ade-918148f52499", "success": true, "total_time_ms": 306.0929775238037}
