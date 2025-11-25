@@ -103,6 +103,153 @@ class AgentExecutionResult:
 
 
 # =============================================================================
+# NEW: ION BRIDGE - Execute real Bun/TypeScript Ions via subprocess
+# =============================================================================
+
+class IonBridge:
+    """
+    Executes real BMAD Ions (Bun/TypeScript agents) via subprocess.
+
+    Bridges Python ADA Orchestrator to TypeScript Ion ecosystem.
+    """
+
+    IONS_DIR = Path(r"C:\Users\talon\OneDrive\Projects\LearnQwest\qwest-ions")
+
+    # Map agent names to Ion directories
+    ION_REGISTRY = {
+        "omnisearch": "omnisearch",
+        "quality-assessor": "quality-assessor",
+        "duplicate-detector-ion": "duplicate-detector-ion",
+        "dead-code-eliminator-ion": "dead-code-eliminator-ion",
+        "code-grouper-ion": "code-grouper-ion",
+        "refactor-planner-ion": "refactor-planner-ion",
+    }
+
+    def __init__(self):
+        self.available_ions = self._discover_ions()
+        logger.info(f"IonBridge initialized with {len(self.available_ions)} available Ions")
+
+    def _discover_ions(self) -> List[str]:
+        """Discover which Ions are available"""
+        available = []
+        for ion_name, ion_dir in self.ION_REGISTRY.items():
+            ion_path = self.IONS_DIR / ion_dir / "src" / "index.ts"
+            if ion_path.exists():
+                available.append(ion_name)
+                logger.debug(f"Found Ion: {ion_name} at {ion_path}")
+            else:
+                logger.warning(f"Ion not found: {ion_name} (expected at {ion_path})")
+        return available
+
+    def is_real_ion(self, agent_name: str) -> bool:
+        """Check if agent is a real Ion we can execute"""
+        return agent_name in self.available_ions
+
+    async def execute_ion(
+        self,
+        ion_name: str,
+        task_description: str,
+        timeout_seconds: int = 30
+    ) -> Dict[str, Any]:
+        """
+        Execute a real Ion via Bun subprocess.
+
+        Returns:
+            Dict with keys: success, output, error, execution_time_ms
+        """
+        import time
+        start_time = time.time()
+
+        if ion_name not in self.ION_REGISTRY:
+            return {
+                "success": False,
+                "output": None,
+                "error": f"Unknown Ion: {ion_name}",
+                "execution_time_ms": 0
+            }
+
+        ion_dir = self.IONS_DIR / self.ION_REGISTRY[ion_name]
+
+        try:
+            # Build command based on ion type
+            if ion_name == "omnisearch":
+                cmd = ["bun", "run", "src/index.ts", "--query", task_description[:200]]
+            else:
+                # Generic execution for other ions
+                cmd = ["bun", "run", "src/index.ts", "--input", task_description[:200]]
+
+            logger.info(f"Executing Ion: {ion_name} with command: {' '.join(cmd)}")
+
+            # Run subprocess
+            process = await asyncio.create_subprocess_exec(
+                *cmd,
+                cwd=str(ion_dir),
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE
+            )
+
+            try:
+                stdout, stderr = await asyncio.wait_for(
+                    process.communicate(),
+                    timeout=timeout_seconds
+                )
+            except asyncio.TimeoutError:
+                process.kill()
+                return {
+                    "success": False,
+                    "output": None,
+                    "error": f"Ion timed out after {timeout_seconds}s",
+                    "execution_time_ms": (time.time() - start_time) * 1000
+                }
+
+            execution_time_ms = (time.time() - start_time) * 1000
+
+            if process.returncode == 0:
+                # Try to parse JSON output
+                output_str = stdout.decode('utf-8', errors='replace')
+                try:
+                    output = json.loads(output_str)
+                except json.JSONDecodeError:
+                    output = {"raw": output_str}
+
+                logger.info(f"Ion {ion_name} completed in {execution_time_ms:.0f}ms")
+                return {
+                    "success": True,
+                    "output": output,
+                    "error": None,
+                    "execution_time_ms": execution_time_ms
+                }
+            else:
+                error_str = stderr.decode('utf-8', errors='replace')
+                logger.error(f"Ion {ion_name} failed: {error_str[:200]}")
+                return {
+                    "success": False,
+                    "output": None,
+                    "error": error_str[:500],
+                    "execution_time_ms": execution_time_ms
+                }
+
+        except FileNotFoundError:
+            return {
+                "success": False,
+                "output": None,
+                "error": "Bun not found. Install from https://bun.sh",
+                "execution_time_ms": (time.time() - start_time) * 1000
+            }
+        except Exception as e:
+            return {
+                "success": False,
+                "output": None,
+                "error": str(e),
+                "execution_time_ms": (time.time() - start_time) * 1000
+            }
+
+    def list_ions(self) -> List[str]:
+        """List all available Ions"""
+        return self.available_ions.copy()
+
+
+# =============================================================================
 # NEW: ROUTING SPINE - Content-type to Agent matching
 # =============================================================================
 
@@ -774,10 +921,11 @@ class ADAOrchestrator:
         self.task_analyzer = TaskAnalyzer()
         self.monitor = ExecutionMonitor()
 
-        # NEW: Routing, Feedback, and Logging
+        # NEW: Routing, Feedback, Logging, and Ion Bridge
         self.routing_spine = RoutingSpine()
         self.feedback_loop = FeedbackLoop()
         self.jsonl_logger = JSONLLogger()
+        self.ion_bridge = IonBridge()  # Execute real Bun/TypeScript Ions
 
         # Load RAGEFORCE infrastructure (will be migrated to LearnQwest)
         self.load_infrastructure()
@@ -947,7 +1095,7 @@ class ADAOrchestrator:
                 self.routing_spine.update_success_rate(agent, success=False)
 
     async def execute_with_agents(self, task: LearningTask) -> Dict[str, Any]:
-        """Execute task with assigned agents"""
+        """Execute task with assigned agents - uses real Ions when available"""
         import time
 
         results = {
@@ -964,19 +1112,33 @@ class ADAOrchestrator:
             self.monitor.log_progress(task.id, 50 + (i * 10), f"Executing {agent_name}")
 
             try:
-                # TODO: Replace with real agent execution via IonBridge
-                # For now, simulate agent work
-                await asyncio.sleep(0.3)
-                output = f"Result from {agent_name} for: {task.description[:50]}"
-                success = True
-                error = None
+                # Check if this is a real Ion we can execute
+                if self.ion_bridge.is_real_ion(agent_name):
+                    # REAL ION EXECUTION via IonBridge
+                    logger.info(f"Executing REAL Ion: {agent_name}")
+                    ion_result = await self.ion_bridge.execute_ion(
+                        ion_name=agent_name,
+                        task_description=task.description,
+                        timeout_seconds=30
+                    )
+                    success = ion_result["success"]
+                    output = ion_result["output"]
+                    error = ion_result["error"]
+                    agent_time_ms = ion_result["execution_time_ms"]
+                else:
+                    # SIMULATED execution for agents without real Ions
+                    logger.info(f"Simulating agent: {agent_name} (no Ion available)")
+                    await asyncio.sleep(0.1)
+                    output = f"[Simulated] Result from {agent_name} for: {task.description[:50]}"
+                    success = True
+                    error = None
+                    agent_time_ms = (time.time() - agent_start) * 1000
 
             except Exception as e:
                 output = None
                 success = False
                 error = str(e)
-
-            agent_time_ms = (time.time() - agent_start) * 1000
+                agent_time_ms = (time.time() - agent_start) * 1000
 
             agent_result = AgentExecutionResult(
                 agent_name=agent_name,
