@@ -293,14 +293,72 @@ Key learning objectives include understanding core concepts, applying knowledge 
                 "code-grouper-ion",
                 "refactor-planner-ion",
             ]:
-                # Code analysis Ions - run with project root
-                cmd = [
-                    bun_cmd,
-                    "run",
-                    "src/index.ts",
-                    "--project",
-                    str(self.IONS_DIR.parent),
-                ]
+                # Code analysis Ions - need scan-results.json matching ScanResultSchema
+                import tempfile
+                import hashlib
+
+                temp_input = Path(tempfile.gettempdir()) / f"ada_{ion_name}_input.json"
+                project_root = self.IONS_DIR.parent
+                now = datetime.now().isoformat()
+
+                # Scan for Python and TypeScript files in the project
+                py_files = list(project_root.glob("**/*.py"))[:50]  # Limit for performance
+                ts_files = list(project_root.glob("**/*.ts"))[:50]
+                all_files = py_files + ts_files
+
+                # Build file entries matching ScanResultSchema.findings.files
+                file_entries = []
+                for f in all_files[:20]:  # Limit to first 20 for quick analysis
+                    if f.exists():
+                        try:
+                            content = f.read_text(errors='ignore')
+                            file_hash = hashlib.md5(content.encode()).hexdigest()
+                            line_count = content.count('\n') + 1
+                            file_entries.append({
+                                "path": str(f.relative_to(project_root)),
+                                "size": f.stat().st_size,
+                                "lines": line_count,
+                                "extension": f.suffix,
+                                "hash": file_hash
+                            })
+                        except Exception:
+                            pass
+
+                # Build scan results matching ScanResultSchema
+                scan_results = {
+                    "workflow_version": "1.0.0",
+                    "timestamps": {
+                        "started": now,
+                        "last_updated": now,
+                        "completed": now
+                    },
+                    "mode": "initial_scan",
+                    "scan_level": "quick",
+                    "project_root": str(project_root),
+                    "output_folder": str(project_root / "output"),
+                    "completed_steps": [
+                        {
+                            "step": "file_scan",
+                            "status": "completed",
+                            "timestamp": now,
+                            "summary": f"Scanned {len(file_entries)} files"
+                        }
+                    ],
+                    "current_step": "analysis",
+                    "findings": {
+                        "project_classification": {
+                            "repository_type": "monorepo",
+                            "parts_count": 1,
+                            "primary_language": "Python",
+                            "architecture_type": "modular"
+                        },
+                        "files": file_entries
+                    },
+                    "outputs_generated": []
+                }
+
+                temp_input.write_text(json.dumps(scan_results, indent=2))
+                cmd = [bun_cmd, "run", "src/index.ts", "-i", str(temp_input)]
             else:
                 # Generic execution - run without args (will use defaults)
                 cmd = [bun_cmd, "run", "src/index.ts"]
