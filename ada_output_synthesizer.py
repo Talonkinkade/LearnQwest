@@ -131,36 +131,52 @@ class OutputSynthesizer:
         group_out = self._find_output(outputs, "code-grouper")
         refactor_out = self._find_output(outputs, "refactor-planner")
 
+        # Check if Ions need scanner input (common case)
+        ions_need_scanner = []
+        for out, name in [(dup_out, "duplicate-detector"), (dead_out, "dead-code-eliminator"),
+                          (group_out, "code-grouper"), (refactor_out, "refactor-planner")]:
+            if out and out.result.get("needs_scanner") or (out and out.result.get("waiting_for_input")):
+                ions_need_scanner.append(name)
+
         # Build executive summary
         summary_parts = []
         total_issues = 0
+        clean_count = 0  # Track how many categories are clean
 
         if dup_out and dup_out.success:
             dup_count = dup_out.result.get("duplicates_found", 0)
-            total_issues += dup_count
-            summary_parts.append(f"{dup_count} duplicate code blocks")
-            if dup_count > 5:
-                recommendations.append(
-                    "HIGH: Refactor duplicate code to shared utilities"
-                )
+            if dup_count > 0:
+                total_issues += dup_count
+                summary_parts.append(f"{dup_count} duplicate code blocks")
+                if dup_count > 5:
+                    recommendations.append(
+                        "HIGH: Refactor duplicate code to shared utilities"
+                    )
+            else:
+                clean_count += 1
 
         if dead_out and dead_out.success:
             dead_funcs = dead_out.result.get("unused_functions", 0)
             dead_imports = dead_out.result.get("unused_imports", 0)
-            total_issues += dead_funcs + dead_imports
-            summary_parts.append(
-                f"{dead_funcs} unused functions, {dead_imports} unused imports"
-            )
-            if dead_funcs > 0:
-                recommendations.append(
-                    "MEDIUM: Remove dead code to reduce maintenance burden"
+            if dead_funcs > 0 or dead_imports > 0:
+                total_issues += dead_funcs + dead_imports
+                summary_parts.append(
+                    f"{dead_funcs} unused functions, {dead_imports} unused imports"
                 )
+                if dead_funcs > 0:
+                    recommendations.append(
+                        "MEDIUM: Remove dead code to reduce maintenance burden"
+                    )
+            else:
+                clean_count += 1
 
         if group_out and group_out.success:
             misplaced = group_out.result.get("misplaced_files", 0)
             if misplaced > 0:
                 summary_parts.append(f"{misplaced} files could be better organized")
                 recommendations.append("LOW: Consider reorganizing file structure")
+            else:
+                clean_count += 1
 
         if refactor_out and refactor_out.success:
             priority_count = len(refactor_out.result.get("priority_actions", []))
@@ -169,11 +185,25 @@ class OutputSynthesizer:
                     f"{priority_count} refactoring actions recommended"
                 )
 
-        summary = (
-            f"Codebase analysis complete. Found {total_issues} issues: "
-            + ", ".join(summary_parts)
-            + "."
-        )
+        # Build appropriate summary based on findings
+        if ions_need_scanner:
+            summary = (
+                f"Code analysis started. {len(ions_need_scanner)} Ion(s) waiting for scanner input: "
+                + ", ".join(ions_need_scanner) + ". "
+                "Run Code Scanner first for complete analysis."
+            )
+            recommendations.insert(0, "HIGH: Run Code Scanner Ion to enable full analysis")
+        elif total_issues == 0 and clean_count > 0:
+            summary = (
+                f"Codebase analysis complete. No issues found! "
+                f"Your codebase is clean across {clean_count} categories analyzed."
+            )
+            recommendations.append("INFO: Continue maintaining good code practices!")
+        else:
+            summary = (
+                f"Codebase analysis complete. Found {total_issues} issues: "
+                + ", ".join(summary_parts) if summary_parts else "No specific issues."
+            ) + "."
 
         # Build sections
         if dup_out and dup_out.success:
@@ -240,86 +270,182 @@ class OutputSynthesizer:
         )
 
     def _format_duplicate_section(self, result: Dict) -> str:
-        """Format duplicate detector output"""
+        """Format duplicate detector output - ENHANCED with actual findings"""
         lines = []
-        lines.append(f"Total duplicates: {result.get('duplicates_found', 0)}")
-        lines.append(f"Lines affected: {result.get('total_lines_duplicated', 0)}")
+        dup_count = result.get('duplicates_found', 0)
+        lines_affected = result.get('total_lines_duplicated', 0)
+
+        # Handle case where Ion needs scanner input FIRST (before other checks)
+        if result.get("needs_scanner") or result.get("waiting_for_input"):
+            lines.append("Duplicate Detection: Pending")
+            lines.append("")
+            lines.append("  Waiting for scanner results...")
+            lines.append("  Run Code Scanner Ion first to analyze the codebase.")
+            return "\n".join(lines)
+
+        lines.append(f"Total duplicates: {dup_count}")
+        lines.append(f"Lines affected: {lines_affected}")
         lines.append(
             f"Space savings potential: {result.get('space_savings', '0 bytes')}"
         )
 
+        # Handle empty/zero results with helpful context
+        if dup_count == 0:
+            lines.append("")
+            lines.append("  No duplicates detected (good!)")
+            lines.append("  Your codebase has good code reuse practices.")
+            return "\n".join(lines)
+
         if "groups" in result:
             lines.append("")
-            lines.append("Top duplicate groups:")
+            lines.append("Duplicate code blocks found:")
             for i, group in enumerate(result["groups"][:5], 1):
                 files = group.get("files", [])
                 file_list = ", ".join(f[:30] for f in files[:3])
                 if len(files) > 3:
                     file_list += f" (+{len(files)-3} more)"
                 lines.append(
-                    f"  {i}. {group.get('lines', 0)} lines across {len(files)} files"
+                    f"  {i}. {group.get('lines', 0)} lines duplicated across {len(files)} files"
                 )
                 lines.append(f"     Files: {file_list}")
+                # Show code snippet if available
+                if group.get("snippet"):
+                    snippet = group["snippet"][:60].replace('\n', ' ')
+                    lines.append(f"     Code: {snippet}...")
 
         return "\n".join(lines)
 
     def _format_dead_code_section(self, result: Dict) -> str:
-        """Format dead code eliminator output"""
+        """Format dead code eliminator output - ENHANCED with actual locations"""
         lines = []
-        lines.append(f"Unused functions: {result.get('unused_functions', 0)}")
-        lines.append(f"Unused imports: {result.get('unused_imports', 0)}")
-        lines.append(f"Unused variables: {result.get('unused_variables', 0)}")
-        lines.append(f"Removable lines: {result.get('removable_lines', 0)}")
+        unused_funcs = result.get('unused_functions', 0)
+        unused_imports = result.get('unused_imports', 0)
+        unused_vars = result.get('unused_variables', 0)
+        removable = result.get('removable_lines', 0)
+
+        lines.append(f"Unused functions: {unused_funcs}")
+        lines.append(f"Unused imports: {unused_imports}")
+        lines.append(f"Unused variables: {unused_vars}")
+        lines.append(f"Removable lines: {removable}")
+
+        # Handle no dead code found
+        total_unused = unused_funcs + unused_imports + unused_vars
+        if total_unused == 0:
+            lines.append("")
+            lines.append("  No dead code detected (excellent!)")
+            lines.append("  Your codebase is clean and well-maintained.")
+            return "\n".join(lines)
+
+        # Handle case where Ion needs scanner input
+        if result.get("needs_scanner") or result.get("waiting_for_input"):
+            lines.append("")
+            lines.append("  Waiting for scanner results...")
+            lines.append("  Run Code Scanner Ion first to analyze the codebase.")
+            return "\n".join(lines)
 
         if "top_unused" in result:
             lines.append("")
-            lines.append("Top candidates for removal:")
-            for item in result["top_unused"][:5]:
-                lines.append(
-                    f"  - {item.get('name', 'unknown')} in {item.get('file', 'unknown')}"
-                )
+            lines.append("Dead code locations:")
+            for item in result["top_unused"][:7]:
+                name = item.get('name', 'unknown')
+                file_path = item.get('file', 'unknown')
+                line_num = item.get('line', '')
+                item_type = item.get('type', 'code')
+                location = f"{file_path}:{line_num}" if line_num else file_path
+                lines.append(f"  - [{item_type}] {name}")
+                lines.append(f"    Location: {location}")
 
         return "\n".join(lines)
 
     def _format_organization_section(self, result: Dict) -> str:
-        """Format code grouper output"""
+        """Format code grouper output - ENHANCED with actionable recommendations"""
         lines = []
-        lines.append(f"Files analyzed: {result.get('files_analyzed', 0)}")
-        lines.append(
-            f"Current structure score: {result.get('organization_score', 'N/A')}/100"
-        )
+        files_analyzed = result.get('files_analyzed', 0)
+        org_score = result.get('organization_score', 'N/A')
 
-        if "suggested_moves" in result:
+        lines.append(f"Files analyzed: {files_analyzed}")
+        lines.append(f"Current structure score: {org_score}/100")
+
+        # Handle case where Ion needs scanner input
+        if result.get("needs_scanner") or result.get("waiting_for_input"):
             lines.append("")
-            lines.append("Suggested reorganizations:")
-            for move in result["suggested_moves"][:5]:
-                lines.append(
-                    f"  - Move {move.get('file', '?')} to {move.get('suggested_location', '?')}"
-                )
+            lines.append("  Waiting for scanner results...")
+            lines.append("  Run Code Scanner Ion first to analyze the codebase.")
+            return "\n".join(lines)
 
-        if "new_directories" in result:
+        # Handle excellent organization
+        if isinstance(org_score, (int, float)) and org_score >= 90:
+            lines.append("")
+            lines.append("  Excellent organization! Structure is well-maintained.")
+            return "\n".join(lines)
+
+        # Handle no suggestions
+        if not result.get("suggested_moves") and not result.get("new_directories"):
+            lines.append("")
+            lines.append("  No reorganization needed at this time.")
+            return "\n".join(lines)
+
+        if "suggested_moves" in result and result["suggested_moves"]:
+            lines.append("")
+            lines.append("Recommended file moves:")
+            for move in result["suggested_moves"][:5]:
+                src = move.get('file', '?')
+                dst = move.get('suggested_location', '?')
+                reason = move.get('reason', '')
+                lines.append(f"  - {src}")
+                lines.append(f"    -> Move to: {dst}")
+                if reason:
+                    lines.append(f"    Reason: {reason}")
+
+        if "new_directories" in result and result["new_directories"]:
             lines.append("")
             lines.append("Suggested new directories:")
-            for dir_name in result["new_directories"][:5]:
-                lines.append(f"  - {dir_name}")
+            for dir_info in result["new_directories"][:5]:
+                if isinstance(dir_info, dict):
+                    lines.append(f"  - {dir_info.get('name', '?')}")
+                    if dir_info.get('purpose'):
+                        lines.append(f"    Purpose: {dir_info['purpose']}")
+                else:
+                    lines.append(f"  - {dir_info}")
 
         return "\n".join(lines)
 
     def _format_refactoring_section(self, result: Dict) -> str:
-        """Format refactor planner output"""
+        """Format refactor planner output - ENHANCED with detailed actions"""
         lines = []
 
-        if "priority_actions" in result:
-            lines.append("Priority refactoring actions:")
-            for i, action in enumerate(result["priority_actions"][:7], 1):
-                if isinstance(action, dict):
-                    lines.append(
-                        f"  {i}. [{action.get('priority', 'MED')}] {action.get('description', 'No description')}"
-                    )
-                    if action.get("estimated_effort"):
-                        lines.append(f"     Effort: {action.get('estimated_effort')}")
-                else:
-                    lines.append(f"  {i}. {action}")
+        # Handle case where Ion needs scanner input
+        if result.get("needs_scanner") or result.get("waiting_for_input"):
+            lines.append("Waiting for scanner results...")
+            lines.append("Run Code Scanner Ion first to analyze the codebase.")
+            return "\n".join(lines)
+
+        priority_actions = result.get("priority_actions", [])
+
+        # Handle no refactoring needed
+        if not priority_actions:
+            lines.append("No refactoring recommendations at this time.")
+            lines.append("  Your code structure looks good!")
+            return "\n".join(lines)
+
+        lines.append("Priority refactoring actions:")
+        for i, action in enumerate(priority_actions[:7], 1):
+            if isinstance(action, dict):
+                priority = action.get('priority', 'MED')
+                desc = action.get('description', 'No description')
+                effort = action.get('estimated_effort', '')
+                file_path = action.get('file', '')
+                impact = action.get('impact', '')
+
+                lines.append(f"  {i}. [{priority}] {desc}")
+                if file_path:
+                    lines.append(f"     File: {file_path}")
+                if effort:
+                    lines.append(f"     Effort: {effort}")
+                if impact:
+                    lines.append(f"     Impact: {impact}")
+            else:
+                lines.append(f"  {i}. {action}")
 
         if "estimated_total_effort" in result:
             lines.append("")
@@ -887,7 +1013,7 @@ class OutputSynthesizer:
         return "\n".join(lines)
 
     def _format_quiz_generation(self, result: Dict) -> str:
-        """Format quiz generation results"""
+        """Format quiz generation results - ENHANCED to show ALL questions"""
         lines = []
 
         # Get questions from result
@@ -898,18 +1024,31 @@ class OutputSynthesizer:
 
         lines.append(f"Questions generated: {questions_count}")
 
-        # Show actual questions if available
+        # Handle empty results with helpful context
+        if questions_count == 0:
+            lines.append("")
+            lines.append("  No questions generated.")
+            if result.get("error"):
+                lines.append(f"  Reason: {result.get('error')}")
+            elif result.get("raw"):
+                lines.append("  Note: Ion returned help text instead of quiz data.")
+                lines.append("  This usually means the Ion needs proper input configuration.")
+            else:
+                lines.append("  Tip: Ensure quiz-generator has valid content input.")
+            return "\n".join(lines)
+
+        # Show ALL questions (not just samples) for better visibility
         if questions:
             lines.append("")
             lines.append("Sample questions:")
-            for i, q in enumerate(questions[:3], 1):
+            for i, q in enumerate(questions, 1):
                 q_type = q.get("type", "unknown")
                 difficulty = q.get("difficulty", "medium")
-                question_text = q.get("question", "No text")[:80]
+                question_text = q.get("question", "No text")[:70]
                 lines.append(f"  {i}. [{q_type}] [{difficulty}] {question_text}...")
 
-            if len(questions) > 3:
-                lines.append(f"  ... and {len(questions) - 3} more questions")
+            if len(questions) > 5:
+                lines.append(f"  ... and {len(questions) - 5} more questions")
 
         # Question type distribution
         if questions:
