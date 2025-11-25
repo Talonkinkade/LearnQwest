@@ -1,0 +1,18 @@
+Error: 'SynthesizedReport' object has no attribute 'pattern'
+
+Item: {
+  "id": "3137a6ac0653",
+  "filename": "sample_quiz.json",
+  "filepath": "dropzones\\failed\\sample_quiz.json",
+  "content_type": "quiz_json",
+  "timestamp": "2025-11-25T17:26:31.280984",
+  "status": "failed",
+  "task_generated": "Create a quiz about photosynthesis for grade 6 with 4 questions",
+  "ions_used": [
+    "quiz-generator-ion"
+  ],
+  "processing_start": "2025-11-25T17:26:31.280984",
+  "processing_end": "2025-11-25T17:26:31.402207",
+  "result": null,
+  "error": "'SynthesizedReport' object has no attribute 'pattern'"
+}

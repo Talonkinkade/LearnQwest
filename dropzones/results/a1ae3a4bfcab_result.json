@@ -1,0 +1,33 @@
+{
+  "id": "a1ae3a4bfcab",
+  "filename": "test_audit.json",
+  "filepath": "dropzones\\processing\\a1ae3a4bfcab_test_audit.json",
+  "content_type": "audit_json",
+  "timestamp": "2025-11-25T17:27:03.786920",
+  "status": "executing",
+  "task_generated": "Audit the codebase at ./",
+  "ions_used": [
+    "duplicate-detector-ion",
+    "dead-code-eliminator-ion",
+    "code-grouper-ion",
+    "refactor-planner-ion"
+  ],
+  "processing_start": "2025-11-25T17:27:03.787919",
+  "processing_end": null,
+  "result": {
+    "title": "LearnQwest Codebase Analysis",
+    "summary": "Codebase analysis complete. No issues found! Your codebase is clean across 3 categories analyzed.",
+    "ions_executed": [
+      "duplicate-detector",
+      "dead-code-eliminator",
+      "code-grouper",
+      "refactor-planner"
+    ],
+    "success_count": 4,
+    "total_duration_ms": 12237,
+    "recommendations": [
+      "INFO: Continue maintaining good code practices!"
+    ]
+  },
+  "error": null
+}

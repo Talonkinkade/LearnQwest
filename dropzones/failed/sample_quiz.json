@@ -1,0 +1,8 @@
+{
+    "type": "quiz",
+    "topic": "photosynthesis",
+    "grade_level": 6,
+    "question_count": 4,
+    "teks_standards": ["6.12B", "6.12C"],
+    "difficulty": "intermediate"
+}
