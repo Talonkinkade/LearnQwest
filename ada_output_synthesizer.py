@@ -46,6 +46,9 @@ class SynthesizedReport:
     raw_outputs: List[IonOutput]
     recommendations: List[str] = field(default_factory=list)
     generated_at: datetime = field(default_factory=datetime.now)
+    execution_trace: Optional[List[Any]] = (
+        None  # ExecutionTrace entries from coordinator
+    )
 
 
 class OutputSynthesizer:
@@ -133,9 +136,17 @@ class OutputSynthesizer:
 
         # Check if Ions need scanner input (common case)
         ions_need_scanner = []
-        for out, name in [(dup_out, "duplicate-detector"), (dead_out, "dead-code-eliminator"),
-                          (group_out, "code-grouper"), (refactor_out, "refactor-planner")]:
-            if out and out.result.get("needs_scanner") or (out and out.result.get("waiting_for_input")):
+        for out, name in [
+            (dup_out, "duplicate-detector"),
+            (dead_out, "dead-code-eliminator"),
+            (group_out, "code-grouper"),
+            (refactor_out, "refactor-planner"),
+        ]:
+            if (
+                out
+                and out.result.get("needs_scanner")
+                or (out and out.result.get("waiting_for_input"))
+            ):
                 ions_need_scanner.append(name)
 
         # Build executive summary
@@ -189,10 +200,13 @@ class OutputSynthesizer:
         if ions_need_scanner:
             summary = (
                 f"Code analysis started. {len(ions_need_scanner)} Ion(s) waiting for scanner input: "
-                + ", ".join(ions_need_scanner) + ". "
+                + ", ".join(ions_need_scanner)
+                + ". "
                 "Run Code Scanner first for complete analysis."
             )
-            recommendations.insert(0, "HIGH: Run Code Scanner Ion to enable full analysis")
+            recommendations.insert(
+                0, "HIGH: Run Code Scanner Ion to enable full analysis"
+            )
         elif total_issues == 0 and clean_count > 0:
             summary = (
                 f"Codebase analysis complete. No issues found! "
@@ -202,7 +216,9 @@ class OutputSynthesizer:
         else:
             summary = (
                 f"Codebase analysis complete. Found {total_issues} issues: "
-                + ", ".join(summary_parts) if summary_parts else "No specific issues."
+                + ", ".join(summary_parts)
+                if summary_parts
+                else "No specific issues."
             ) + "."
 
         # Build sections
@@ -272,8 +288,8 @@ class OutputSynthesizer:
     def _format_duplicate_section(self, result: Dict) -> str:
         """Format duplicate detector output - ENHANCED with actual findings"""
         lines = []
-        dup_count = result.get('duplicates_found', 0)
-        lines_affected = result.get('total_lines_duplicated', 0)
+        dup_count = result.get("duplicates_found", 0)
+        lines_affected = result.get("total_lines_duplicated", 0)
 
         # Handle case where Ion needs scanner input FIRST (before other checks)
         if result.get("needs_scanner") or result.get("waiting_for_input"):
@@ -310,7 +326,7 @@ class OutputSynthesizer:
                 lines.append(f"     Files: {file_list}")
                 # Show code snippet if available
                 if group.get("snippet"):
-                    snippet = group["snippet"][:60].replace('\n', ' ')
+                    snippet = group["snippet"][:60].replace("\n", " ")
                     lines.append(f"     Code: {snippet}...")
 
         return "\n".join(lines)
@@ -318,10 +334,10 @@ class OutputSynthesizer:
     def _format_dead_code_section(self, result: Dict) -> str:
         """Format dead code eliminator output - ENHANCED with actual locations"""
         lines = []
-        unused_funcs = result.get('unused_functions', 0)
-        unused_imports = result.get('unused_imports', 0)
-        unused_vars = result.get('unused_variables', 0)
-        removable = result.get('removable_lines', 0)
+        unused_funcs = result.get("unused_functions", 0)
+        unused_imports = result.get("unused_imports", 0)
+        unused_vars = result.get("unused_variables", 0)
+        removable = result.get("removable_lines", 0)
 
         lines.append(f"Unused functions: {unused_funcs}")
         lines.append(f"Unused imports: {unused_imports}")
@@ -347,10 +363,10 @@ class OutputSynthesizer:
             lines.append("")
             lines.append("Dead code locations:")
             for item in result["top_unused"][:7]:
-                name = item.get('name', 'unknown')
-                file_path = item.get('file', 'unknown')
-                line_num = item.get('line', '')
-                item_type = item.get('type', 'code')
+                name = item.get("name", "unknown")
+                file_path = item.get("file", "unknown")
+                line_num = item.get("line", "")
+                item_type = item.get("type", "code")
                 location = f"{file_path}:{line_num}" if line_num else file_path
                 lines.append(f"  - [{item_type}] {name}")
                 lines.append(f"    Location: {location}")
@@ -360,8 +376,8 @@ class OutputSynthesizer:
     def _format_organization_section(self, result: Dict) -> str:
         """Format code grouper output - ENHANCED with actionable recommendations"""
         lines = []
-        files_analyzed = result.get('files_analyzed', 0)
-        org_score = result.get('organization_score', 'N/A')
+        files_analyzed = result.get("files_analyzed", 0)
+        org_score = result.get("organization_score", "N/A")
 
         lines.append(f"Files analyzed: {files_analyzed}")
         lines.append(f"Current structure score: {org_score}/100")
@@ -389,9 +405,9 @@ class OutputSynthesizer:
             lines.append("")
             lines.append("Recommended file moves:")
             for move in result["suggested_moves"][:5]:
-                src = move.get('file', '?')
-                dst = move.get('suggested_location', '?')
-                reason = move.get('reason', '')
+                src = move.get("file", "?")
+                dst = move.get("suggested_location", "?")
+                reason = move.get("reason", "")
                 lines.append(f"  - {src}")
                 lines.append(f"    -> Move to: {dst}")
                 if reason:
@@ -403,7 +419,7 @@ class OutputSynthesizer:
             for dir_info in result["new_directories"][:5]:
                 if isinstance(dir_info, dict):
                     lines.append(f"  - {dir_info.get('name', '?')}")
-                    if dir_info.get('purpose'):
+                    if dir_info.get("purpose"):
                         lines.append(f"    Purpose: {dir_info['purpose']}")
                 else:
                     lines.append(f"  - {dir_info}")
@@ -431,11 +447,11 @@ class OutputSynthesizer:
         lines.append("Priority refactoring actions:")
         for i, action in enumerate(priority_actions[:7], 1):
             if isinstance(action, dict):
-                priority = action.get('priority', 'MED')
-                desc = action.get('description', 'No description')
-                effort = action.get('estimated_effort', '')
-                file_path = action.get('file', '')
-                impact = action.get('impact', '')
+                priority = action.get("priority", "MED")
+                desc = action.get("description", "No description")
+                effort = action.get("estimated_effort", "")
+                file_path = action.get("file", "")
+                impact = action.get("impact", "")
 
                 lines.append(f"  {i}. [{priority}] {desc}")
                 if file_path:
@@ -1032,7 +1048,9 @@ class OutputSynthesizer:
                 lines.append(f"  Reason: {result.get('error')}")
             elif result.get("raw"):
                 lines.append("  Note: Ion returned help text instead of quiz data.")
-                lines.append("  This usually means the Ion needs proper input configuration.")
+                lines.append(
+                    "  This usually means the Ion needs proper input configuration."
+                )
             else:
                 lines.append("  Tip: Ensure quiz-generator has valid content input.")
             return "\n".join(lines)
