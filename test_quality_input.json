@@ -1,0 +1,24 @@
+[
+  {
+    "id": "test1",
+    "title": "Python Tutorial for Beginners",
+    "url": "https://youtube.com/watch?v=abc123",
+    "source": "youtube",
+    "type": "video",
+    "views": 150000,
+    "likes": 8500,
+    "description": "Learn Python programming from scratch with hands-on examples",
+    "duration": "45:30"
+  },
+  {
+    "id": "test2",
+    "title": "Quick Tips",
+    "url": "https://youtube.com/watch?v=xyz789",
+    "source": "youtube",
+    "type": "video",
+    "views": 500,
+    "likes": 10,
+    "description": "tips",
+    "duration": "0:30"
+  }
+]

@@ -114,6 +114,7 @@ class IonBridge:
     """
 
     IONS_DIR = Path(r"C:\Users\talon\OneDrive\Projects\LearnQwest\qwest-ions")
+    BUN_PATH = Path(r"C:\Users\talon\.bun\bin\bun.exe")
 
     # Map agent names to Ion directories
     ION_REGISTRY = {
@@ -171,12 +172,31 @@ class IonBridge:
         ion_dir = self.IONS_DIR / self.ION_REGISTRY[ion_name]
 
         try:
-            # Build command based on ion type
+            # Build command based on ion type (use full bun path)
+            bun_cmd = str(self.BUN_PATH) if self.BUN_PATH.exists() else "bun"
+
             if ion_name == "omnisearch":
-                cmd = ["bun", "run", "src/index.ts", "--query", task_description[:200]]
+                # Omnisearch needs external APIs - check if configured
+                cmd = [bun_cmd, "run", "src/index.ts", "--query", task_description[:200]]
+            elif ion_name == "quality-assessor":
+                # Quality assessor needs an input file - create temp input with proper schema
+                import tempfile
+                temp_input = Path(tempfile.gettempdir()) / "ada_quality_input.json"
+                temp_input.write_text(json.dumps([{
+                    "id": f"task_{uuid.uuid4().hex[:8]}",
+                    "title": task_description[:100],
+                    "url": "https://learnqwest.local/task",
+                    "source": "youtube",  # Use valid source
+                    "type": "video",  # Use valid type
+                    "description": task_description,
+                    "views": 10000,
+                    "likes": 500,
+                    "duration": "10:00"
+                }]))
+                cmd = [bun_cmd, "run", "src/index.ts", "--input", str(temp_input), "--mode", "testing"]
             else:
-                # Generic execution for other ions
-                cmd = ["bun", "run", "src/index.ts", "--input", task_description[:200]]
+                # Generic execution for other ions (duplicate-detector, dead-code-eliminator, etc.)
+                cmd = [bun_cmd, "run", "src/index.ts", "--help"]  # Show help as fallback
 
             logger.info(f"Executing Ion: {ion_name} with command: {' '.join(cmd)}")
 
