@@ -1,0 +1,21 @@
+{
+  "name": "quiz-generator-ion",
+  "version": "1.0.0",
+  "description": "BMAD Ion for generating educational quiz questions from content",
+  "type": "module",
+  "main": "src/index.ts",
+  "scripts": {
+    "start": "bun run src/index.ts",
+    "test": "bun test"
+  },
+  "keywords": ["quiz", "education", "teks", "learnqwest", "bmad-ion"],
+  "author": "LearnQwest",
+  "license": "MIT",
+  "dependencies": {
+    "zod": "^3.22.4"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "typescript": "^5.0.0"
+  }
+}
