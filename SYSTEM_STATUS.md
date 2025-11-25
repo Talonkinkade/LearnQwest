@@ -23,12 +23,14 @@
 
 | Ion | API Required | Status | Tested |
 |-----|--------------|--------|--------|
-| **quality-assessor** | NO | ✅ Ready | ✅ 182ms |
-| **duplicate-detector** | NO | ✅ Ready | - |
-| **dead-code-eliminator** | NO | ✅ Ready | - |
-| **code-grouper** | NO | ✅ Ready | - |
-| **refactor-planner** | NO | ✅ Ready | - |
+| **quality-assessor** | NO | ✅ Tested | ✅ 182ms |
+| **duplicate-detector** | NO | ✅ Ready* | - |
+| **dead-code-eliminator** | NO | ✅ Tested | ✅ Working |
+| **code-grouper** | NO | ✅ Tested | ✅ Working |
+| **refactor-planner** | NO | ✅ Tested | ✅ Working |
 | **omnisearch** | YES | ⏳ Needs API keys | - |
+
+*duplicate-detector requires Code Scanner Ion output (pipeline dependency)
 
 ---
 
