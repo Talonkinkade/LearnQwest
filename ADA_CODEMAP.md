@@ -1,11 +1,108 @@
 # LearnQwest ADA System - CodeMap
-**Multi-Agent Orchestration Platform**  
-**Last Updated:** 2025-11-25 (Late Evening Session)  
+**Multi-Agent Orchestration Platform**
+**Last Updated:** 2025-11-25 (Night Session)
 **Team:** ALPHA, BRAVO, CHARLIE, DELTA
 
 ---
 
-## [LATEST] Updates (Nov 25, 2025 - Late Evening)
+## [LATEST] Updates (Nov 25, 2025 - Night)
+
+### Phase 3A: Observability Infrastructure [COMPLETE]
+**Mission:** ALPHA built data collection for execution tracing
+
+**Status:** ✅ COMPLETE - All trace data collecting correctly
+
+**What Was Built:**
+1. **ExecutionTrace Dataclass** - Tracks Ion execution details
+   - Wave number, Ion name, status (STARTED/SUCCESS/FAILED)
+   - Start/end time, duration in milliseconds
+   - Token usage and cost calculation
+   - Error messages for failed Ions
+
+2. **Trace Collection During Execution**
+   - `_execute_wave()` updated to accept `wave_num` and `trace_list`
+   - Trace entries created before Ion execution (STARTED)
+   - Trace entries updated after Ion execution (SUCCESS/FAILED)
+   - Token usage extracted from Ion metadata
+
+3. **Cost Calculator**
+   - `_calculate_cost()` method added
+   - Claude Sonnet 4 pricing: ~$9 per million tokens
+   - Automatic cost calculation when token data available
+
+4. **Execute Method Enhanced**
+   - New `trace` parameter in `execute()` method
+   - `execution_trace` list initialized when trace=True
+   - Trace data stored in `report.execution_trace`
+
+5. **SynthesizedReport Updated**
+   - Added `execution_trace` field to store trace entries
+   - Enables report.execution_trace access
+
+**Files Modified:**
+- `ada_coordinator.py`: +100 lines (observability infrastructure)
+- `ada_output_synthesizer.py`: +1 line (execution_trace field)
+
+**Test Results:**
+```python
+coordinator = ADACoordinator()
+report = await coordinator.execute("Audit the codebase", trace=True)
+print(f"Trace entries: {len(report.execution_trace)}")
+# Output: Trace entries: 4 ✅
+```
+
+**Commits:**
+- `110f70e` - Initial observability infrastructure
+- `681b61a` - Added execution_trace field to SynthesizedReport
+
+---
+
+### Phase 3B: Execution Trace Display [COMPLETE]
+**Mission:** BRAVO built display system for Dan's observability style
+
+**Added:**
+1. **`_display_execution_trace()` Method** - Dan-style trace output
+   - Groups Ions by wave number
+   - Labels waves as "Parallel" or "Sequential"
+   - Status icons: [OK], [XX], [->]
+   - Formatted columns: Ion name, duration, tokens, cost
+   - Totals summary line with success rate
+
+2. **CLI `--trace` Flag**
+   - `python run_ada.py --trace "Audit the codebase"`
+   - `python run_ada.py "task" --trace` (flag position flexible)
+   - Combine with `--quiet` for trace-only output
+
+**Example Output:**
+```
+================================================================================
+  EXECUTION TRACE
+================================================================================
+
+Wave 1 (Parallel):
+  [OK] duplicate-detector               3209ms     --- tokens  $-.----
+  [OK] dead-code-eliminator             3186ms     --- tokens  $-.----
+  [OK] code-grouper                     3321ms     --- tokens  $-.----
+
+Wave 2 (Sequential):
+  [OK] refactor-planner                 1228ms     --- tokens  $-.----
+
+--------------------------------------------------------------------------------
+Total: 10.9s | 0 tokens | $0.0000 | 4/4 successful
+================================================================================
+```
+
+**Test Results (All 4 Modes Pass):**
+- Multi-Wave + Trace: 4/4 Ions, 2 waves displayed correctly
+- Single Wave + Trace: 1/1 Ions, labeled as Sequential
+- Trace Only (--quiet --trace): Clean trace output only
+- Normal Mode (no trace): Works as before
+
+**Files Modified:**
+- `ada_coordinator.py`: +70 lines (`_display_execution_trace()`)
+- `run_ada.py`: +20 lines (--trace flag, flexible arg parsing)
+
+---
 
 ### Phase 3A: Observability Infrastructure [COMPLETE]
 **Mission:** ALPHA built data collection for execution tracing
@@ -32,24 +129,33 @@
    - New `trace` parameter in `execute()` method
    - `execution_trace` list initialized when trace=True
    - Trace data stored in `report.execution_trace`
-   - Ready for BRAVO to display
 
 **Files Modified:**
 - `ada_coordinator.py`: +100 lines (observability infrastructure)
 
-### Refactoring Pattern Fixed [COMPLETE]
+---
+
+### Refactoring Pipeline [COMPLETE - 100% SUCCESS]
 **Problem:** refactor-planner-ion requires outputs from 3 analysis Ions
 
-**Solution:** 2-wave execution pattern
+**Solution:** 2-wave execution pattern with result passing
 - **Wave 1 (Parallel):** duplicate-detector, dead-code-eliminator, code-grouper
-- **Wave 2 (Sequential):** refactor-planner (uses Wave 1 outputs)
+- **Wave 2 (Sequential):** refactor-planner (receives Wave 1 outputs)
+
+**Fixes Applied:**
+1. **TypeScript Bug Fixed** - `options.dead_code` -> `options.deadCode` (Commander.js camelCase)
+2. **IonBridge Updated** - Passes `previous_results` to orchestrator Ions
+3. **Coordinator Updated** - Tracks `previous_wave_results` across waves
 
 **Test Results:**
-- Wave 1: All 3 Ions executed successfully (3419ms, 2236ms, 1273ms)
-- Wave 2: Awaiting IonBridge update to pass previous results
-- Success Rate: 75% (3/4 Ions working)
+- Wave 1: All 3 Ions successful (3209ms, 3186ms, 3321ms)
+- Wave 2: refactor-planner successful (1228ms)
+- **Success Rate: 100% (4/4 Ions)**
 
 **Files Modified:**
+- `qwest-ions/refactor-planner-ion/src/index.ts`: Commander.js fix
+- `ada_orchestrator.py`: IonBridge result passing
+- `ada_coordinator.py`: Wave result tracking
 - `ada_task_decomposer.py`: `_decompose_refactoring()` method
 
 ### Emoji Cleanup [COMPLETE]
