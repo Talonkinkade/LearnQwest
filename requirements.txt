@@ -1,0 +1,24 @@
+# LearnQwest ADA Orchestrator - Python Dependencies
+# Last Updated: November 25, 2025
+# Python Version: 3.11+
+
+# Core dependencies (all built-in for Python 3.11+)
+# asyncio - Async task execution
+# json - JSON parsing
+# dataclasses - Data structures
+# pathlib - Path handling
+# logging - Logging system
+# uuid - Unique ID generation
+# datetime - Timestamp handling
+# enum - Enumerations
+
+# No external packages required for core ADA functionality!
+# ADA is designed to work with Python standard library only.
+
+# Optional: For development and testing
+# pytest>=7.4.0  # Uncomment if you want to run tests with pytest
+# black>=23.0.0  # Uncomment for code formatting
+# mypy>=1.5.0    # Uncomment for type checking
+
+# Note: Bun/TypeScript Ions have their own package.json dependencies
+# See qwest-ions/*/package.json for Ion-specific requirements
