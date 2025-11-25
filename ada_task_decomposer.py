@@ -553,23 +553,69 @@ class TaskDecomposer:
         self, task: str, context: Dict[str, Any]
     ) -> List[SubTask]:
         """
-        Decompose refactoring request
+        Decompose refactoring request into 2-wave execution
+
+        Wave 1: Gather intelligence (3 analysis Ions in parallel)
+        Wave 2: Create refactoring plan (1 orchestrator Ion)
 
         Example: "Refactor the Ion system"
         """
         path = context.get("path") or self._extract_path(task) or "./"
 
+        # Wave 1: Analysis Ions (run in parallel)
+
+        # 1. Duplicate detection
+        dup_task = SubTask(
+            task_id=self._generate_task_id("duplicate-detector"),
+            ion_name="duplicate-detector",
+            description="Find duplicate code patterns for refactoring consideration",
+            input_data={"path": path, "output": "duplicates.json"},
+            priority=2,  # Higher priority = Wave 1
+            can_parallelize=True,
+            estimated_time_seconds=5,
+        )
+
+        # 2. Dead code analysis
+        dead_task = SubTask(
+            task_id=self._generate_task_id("dead-code-eliminator"),
+            ion_name="dead-code-eliminator",
+            description="Identify unused code for removal recommendations",
+            input_data={"path": path, "output": "dead_code.json"},
+            priority=2,  # Higher priority = Wave 1
+            can_parallelize=True,
+            estimated_time_seconds=5,
+        )
+
+        # 3. Organization analysis
+        grouper_task = SubTask(
+            task_id=self._generate_task_id("code-grouper"),
+            ion_name="code-grouper",
+            description="Analyze code organization for restructuring opportunities",
+            input_data={"path": path, "output": "grouping.json"},
+            priority=2,  # Higher priority = Wave 1
+            can_parallelize=True,
+            estimated_time_seconds=8,
+        )
+
+        # Wave 2: Refactoring plan (runs after Wave 1 complete)
         refactor_task = SubTask(
             task_id=self._generate_task_id("refactor-planner"),
             ion_name="refactor-planner",
-            description="Plan refactoring strategy",
-            input_data={"path": path, "output": "refactor_plan.json"},
-            priority=1,
-            can_parallelize=True,
+            description="Generate comprehensive refactoring plan using analysis results",
+            input_data={
+                "path": path,
+                "duplicates": "duplicates.json",
+                "dead_code": "dead_code.json",
+                "grouping": "grouping.json",
+                "output": "refactor_plan.json",
+            },
+            priority=1,  # Lower priority = Wave 2
+            depends_on=[dup_task.task_id, dead_task.task_id, grouper_task.task_id],
+            can_parallelize=False,
             estimated_time_seconds=10,
         )
 
-        return [refactor_task]
+        return [dup_task, dead_task, grouper_task, refactor_task]
 
     def _decompose_documentation(
         self, task: str, context: Dict[str, Any]

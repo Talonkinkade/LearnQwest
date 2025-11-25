@@ -162,10 +162,20 @@ class IonBridge:
         return agent_name in self.available_ions
 
     async def execute_ion(
-        self, ion_name: str, task_description: str, timeout_seconds: int = 30
+        self,
+        ion_name: str,
+        task_description: str,
+        timeout_seconds: int = 30,
+        previous_results: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         """
         Execute a real Ion via Bun subprocess.
+
+        Args:
+            ion_name: Name of the Ion to execute
+            task_description: Description of the task
+            timeout_seconds: Timeout in seconds
+            previous_results: Results from previous wave (for orchestrator Ions like refactor-planner)
 
         Returns:
             Dict with keys: success, output, error, execution_time_ms
@@ -291,7 +301,6 @@ Key learning objectives include understanding core concepts, applying knowledge 
                 "duplicate-detector-ion",
                 "dead-code-eliminator-ion",
                 "code-grouper-ion",
-                "refactor-planner-ion",
             ]:
                 # Code analysis Ions - need scan-results.json matching ScanResultSchema
                 import tempfile
@@ -302,7 +311,9 @@ Key learning objectives include understanding core concepts, applying knowledge 
                 now = datetime.now().isoformat()
 
                 # Scan for Python and TypeScript files in the project
-                py_files = list(project_root.glob("**/*.py"))[:50]  # Limit for performance
+                py_files = list(project_root.glob("**/*.py"))[
+                    :50
+                ]  # Limit for performance
                 ts_files = list(project_root.glob("**/*.ts"))[:50]
                 all_files = py_files + ts_files
 
@@ -311,16 +322,18 @@ Key learning objectives include understanding core concepts, applying knowledge 
                 for f in all_files[:20]:  # Limit to first 20 for quick analysis
                     if f.exists():
                         try:
-                            content = f.read_text(errors='ignore')
+                            content = f.read_text(errors="ignore")
                             file_hash = hashlib.md5(content.encode()).hexdigest()
-                            line_count = content.count('\n') + 1
-                            file_entries.append({
-                                "path": str(f.relative_to(project_root)),
-                                "size": f.stat().st_size,
-                                "lines": line_count,
-                                "extension": f.suffix,
-                                "hash": file_hash
-                            })
+                            line_count = content.count("\n") + 1
+                            file_entries.append(
+                                {
+                                    "path": str(f.relative_to(project_root)),
+                                    "size": f.stat().st_size,
+                                    "lines": line_count,
+                                    "extension": f.suffix,
+                                    "hash": file_hash,
+                                }
+                            )
                         except Exception:
                             pass
 
@@ -330,7 +343,7 @@ Key learning objectives include understanding core concepts, applying knowledge 
                     "timestamps": {
                         "started": now,
                         "last_updated": now,
-                        "completed": now
+                        "completed": now,
                     },
                     "mode": "initial_scan",
                     "scan_level": "quick",
@@ -341,7 +354,7 @@ Key learning objectives include understanding core concepts, applying knowledge 
                             "step": "file_scan",
                             "status": "completed",
                             "timestamp": now,
-                            "summary": f"Scanned {len(file_entries)} files"
+                            "summary": f"Scanned {len(file_entries)} files",
                         }
                     ],
                     "current_step": "analysis",
@@ -350,15 +363,178 @@ Key learning objectives include understanding core concepts, applying knowledge 
                             "repository_type": "monorepo",
                             "parts_count": 1,
                             "primary_language": "Python",
-                            "architecture_type": "modular"
+                            "architecture_type": "modular",
                         },
-                        "files": file_entries
+                        "files": file_entries,
                     },
-                    "outputs_generated": []
+                    "outputs_generated": [],
                 }
 
                 temp_input.write_text(json.dumps(scan_results, indent=2))
                 cmd = [bun_cmd, "run", "src/index.ts", "-i", str(temp_input)]
+            elif ion_name == "refactor-planner-ion":
+                # Refactor Planner is an ORCHESTRATOR Ion - needs outputs from other analysis Ions
+                # It expects: --scan, --duplicates, --dead-code, --grouping flags
+                import tempfile
+
+                temp_dir = Path(tempfile.gettempdir())
+                project_root = self.IONS_DIR.parent
+                now = datetime.now().isoformat()
+
+                # Generate scan results (base input)
+                scan_file = temp_dir / "ada_refactor_scan.json"
+                py_files = list(project_root.glob("**/*.py"))[:50]
+                ts_files = list(project_root.glob("**/*.ts"))[:50]
+                all_files = py_files + ts_files
+
+                scan_results = {
+                    "workflow_version": "1.0.0",
+                    "timestamps": {
+                        "started": now,
+                        "last_updated": now,
+                        "completed": now,
+                    },
+                    "mode": "initial_scan",
+                    "scan_level": "quick",
+                    "project_root": str(project_root),
+                    "output_folder": str(project_root / "output"),
+                    "completed_steps": [
+                        {"step": "file_scan", "status": "completed", "timestamp": now}
+                    ],
+                    "current_step": "analysis",
+                    "findings": {
+                        "project_classification": {
+                            "repository_type": "monorepo",
+                            "parts_count": 1,
+                            "primary_language": "Python",
+                            "architecture_type": "modular",
+                        },
+                        "files": [
+                            {
+                                "path": str(f.relative_to(project_root)),
+                                "size": 0,
+                                "lines": 0,
+                                "extension": f.suffix,
+                            }
+                            for f in all_files[:20]
+                        ],
+                    },
+                    "outputs_generated": [],
+                }
+                scan_file.write_text(json.dumps(scan_results, indent=2))
+
+                # Get results from previous wave if available
+                dup_results = (
+                    previous_results.get("duplicate-detector", {})
+                    if previous_results
+                    else {}
+                )
+                dead_results = (
+                    previous_results.get("dead-code-eliminator", {})
+                    if previous_results
+                    else {}
+                )
+                group_results = (
+                    previous_results.get("code-grouper", {}) if previous_results else {}
+                )
+
+                # Write duplicate detector results
+                dup_file = temp_dir / "ada_refactor_duplicates.json"
+                dup_file.write_text(
+                    json.dumps(
+                        {
+                            "generated_at": now,
+                            "project_root": str(project_root),
+                            "scan_summary": {
+                                "files_analyzed": len(all_files[:20]),
+                                "total_lines": 0,
+                                "duplicates_found": dup_results.get(
+                                    "duplicates_found", 0
+                                ),
+                                "exact_duplicates": 0,
+                                "similar_duplicates": 0,
+                                "total_space_savings": 0,
+                            },
+                            "duplicate_groups": dup_results.get("groups", []),
+                            "pattern_groups": [],
+                            "file_path_patterns": [],
+                            "recommendations": [],
+                        },
+                        indent=2,
+                    )
+                )
+
+                # Write dead code results
+                dead_file = temp_dir / "ada_refactor_deadcode.json"
+                dead_file.write_text(
+                    json.dumps(
+                        {
+                            "generated_at": now,
+                            "project_root": str(project_root),
+                            "analysis_summary": {
+                                "files_analyzed": len(all_files[:20]),
+                                "unused_functions": dead_results.get(
+                                    "unused_functions", 0
+                                ),
+                                "unused_imports": dead_results.get("unused_imports", 0),
+                                "unused_variables": dead_results.get(
+                                    "unused_variables", 0
+                                ),
+                                "removable_lines": dead_results.get(
+                                    "removable_lines", 0
+                                ),
+                            },
+                            "dead_code_items": dead_results.get("top_unused", []),
+                            "recommendations": [],
+                        },
+                        indent=2,
+                    )
+                )
+
+                # Write code grouper results
+                group_file = temp_dir / "ada_refactor_grouping.json"
+                group_file.write_text(
+                    json.dumps(
+                        {
+                            "generated_at": now,
+                            "project_root": str(project_root),
+                            "organization_summary": {
+                                "files_analyzed": group_results.get(
+                                    "files_analyzed", 0
+                                ),
+                                "organization_score": group_results.get(
+                                    "organization_score", 85
+                                ),
+                                "misplaced_files": group_results.get(
+                                    "misplaced_files", 0
+                                ),
+                            },
+                            "file_groups": group_results.get("groups", []),
+                            "suggested_moves": group_results.get("suggested_moves", []),
+                            "new_directories": group_results.get("new_directories", []),
+                            "recommendations": [],
+                        },
+                        indent=2,
+                    )
+                )
+
+                # Build command with all analysis inputs
+                cmd = [
+                    bun_cmd,
+                    "run",
+                    "src/index.ts",
+                    "--scan",
+                    str(scan_file),
+                    "--duplicates",
+                    str(dup_file),
+                    "--dead-code",
+                    str(dead_file),
+                    "--grouping",
+                    str(group_file),
+                ]
+                logger.info(
+                    f"Refactor planner using previous results: dup={bool(dup_results)}, dead={bool(dead_results)}, group={bool(group_results)}"
+                )
             else:
                 # Generic execution - run without args (will use defaults)
                 cmd = [bun_cmd, "run", "src/index.ts"]
@@ -917,7 +1093,9 @@ class TaskQueue:
             self.queue.append(task)
             # Sort by priority (higher priority first)
             self.queue.sort(key=lambda t: t.priority.value, reverse=True)
-            logger.info(f"✅ Task queued: {task.id} (Priority: {task.priority.value})")
+            logger.info(
+                f"[OK] Task queued: {task.id} (Priority: {task.priority.value})"
+            )
             return task.id
 
     async def get_next_task(self) -> Optional[LearningTask]:
@@ -943,7 +1121,7 @@ class TaskQueue:
                 task.updated_at = datetime.now().isoformat()
                 task.progress = 100
                 self.completed_tasks[task_id] = task
-                logger.info(f"✅ Task completed: {task_id}")
+                logger.info(f"[OK] Task completed: {task_id}")
 
     async def fail_task(self, task_id: str, error: str):
         """Mark task as failed"""
@@ -954,7 +1132,7 @@ class TaskQueue:
                 task.error = error
                 task.updated_at = datetime.now().isoformat()
                 self.completed_tasks[task_id] = task
-                logger.error(f"❌ Task failed: {task_id} - {error}")
+                logger.error(f"[FAIL] Task failed: {task_id} - {error}")
 
     def get_status(self) -> Dict[str, Any]:
         """Get queue status"""
@@ -997,7 +1175,7 @@ class TaskAnalyzer:
         }
 
         logger.info(
-            f"📊 Task analyzed: {task.id} - Complexity: {complexity}, Agents: {len(agent_team)}"
+            f"[STATS] Task analyzed: {task.id} - Complexity: {complexity}, Agents: {len(agent_team)}"
         )
 
         return analysis
@@ -1104,7 +1282,7 @@ class ExecutionMonitor:
         """Start monitoring a task"""
         self.active_monitors[task_id] = {"start_time": datetime.now(), "status_log": []}
         self.metrics["total_tasks"] += 1
-        logger.info(f"🔍 Started monitoring task: {task_id}")
+        logger.info(f"[MONITOR] Started monitoring task: {task_id}")
 
     def log_progress(self, task_id: str, progress: int, message: str):
         """Log task progress"""
@@ -1116,7 +1294,7 @@ class ExecutionMonitor:
                     "message": message,
                 }
             )
-            logger.info(f"📊 Task {task_id}: {progress}% - {message}")
+            logger.info(f"[PROGRESS] Task {task_id}: {progress}% - {message}")
 
     def log_agent_execution(
         self, task_id: str, agent_name: str, result: AgentExecutionResult
@@ -1147,10 +1325,12 @@ class ExecutionMonitor:
 
             if success:
                 self.metrics["successful_tasks"] += 1
-                logger.info(f"✅ Task {task_id} completed in {execution_time:.2f}s")
+                logger.info(f"[OK] Task {task_id} completed in {execution_time:.2f}s")
             else:
                 self.metrics["failed_tasks"] += 1
-                logger.error(f"❌ Task {task_id} failed after {execution_time:.2f}s")
+                logger.error(
+                    f"[FAIL] Task {task_id} failed after {execution_time:.2f}s"
+                )
 
     def get_metrics(self) -> Dict[str, Any]:
         """Get current metrics"""
@@ -1220,23 +1400,23 @@ class ADAOrchestrator:
                 from ragents.AGENT_WRANGLER import AgentWrangler
 
                 self.agent_wrangler = AgentWrangler()
-                logger.info("✅ Agent Wrangler loaded (60+ agents available)")
+                logger.info("[OK] Agent Wrangler loaded (60+ agents available)")
             except Exception as e:
-                logger.warning(f"⚠️ Agent Wrangler not available: {e}")
+                logger.warning(f"[WARN] Agent Wrangler not available: {e}")
                 self.agent_wrangler = None
 
             try:
                 from scout_plan_build_orchestrator import ScoutPlanBuildOrchestrator
 
                 self.spb_orchestrator = ScoutPlanBuildOrchestrator()
-                logger.info("✅ Scout-Plan-Build Orchestrator loaded")
+                logger.info("[OK] Scout-Plan-Build Orchestrator loaded")
             except Exception as e:
-                logger.warning(f"⚠️ SPB Orchestrator not available: {e}")
+                logger.warning(f"[WARN] SPB Orchestrator not available: {e}")
                 self.spb_orchestrator = None
 
         except Exception as e:
-            logger.warning(f"⚠️ RAGEFORCE infrastructure not fully loaded: {e}")
-            logger.info("💡 Running in standalone mode with simulated agents")
+            logger.warning(f"[WARN] RAGEFORCE infrastructure not fully loaded: {e}")
+            logger.info("[INFO] Running in standalone mode with simulated agents")
             self.agent_wrangler = None
             self.spb_orchestrator = None
 
@@ -1478,12 +1658,12 @@ class ADAOrchestrator:
     async def start(self):
         """Start the orchestrator task processor"""
         if self._running:
-            logger.warning("⚠️ Orchestrator already running")
+            logger.warning("[WARN] Orchestrator already running")
             return
 
         self._running = True
         self._processor_task = asyncio.create_task(self._process_queue())
-        logger.info("🚀 Orchestrator started - processing tasks")
+        logger.info("[START] Orchestrator started - processing tasks")
 
     async def stop(self):
         """Stop the orchestrator"""
