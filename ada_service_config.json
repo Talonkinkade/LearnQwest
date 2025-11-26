@@ -1,0 +1,12 @@
+{
+  "check_interval": 5,
+  "command_inbox": "commands/inbox.txt",
+  "command_results": "commands/results/",
+  "dropzone_path": "dropzones/inbox/",
+  "status_file": "ada_status.json",
+  "enable_dropzone": true,
+  "enable_commands": true,
+  "max_retries": 3,
+  "log_level": "INFO",
+  "notifications_enabled": true
+}
